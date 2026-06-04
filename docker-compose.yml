@@ -1,6 +1,7 @@
 services:
   bench-instrument-service:
-    image: ghcr.io/theagingapprentice/bench-instrument-service:latest
+    build: .
+    image: bench-instrument-service:latest
     container_name: bench-instrument-service
     restart: unless-stopped
     env_file:
