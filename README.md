@@ -2,9 +2,13 @@
 
 FastAPI REST API that abstracts four LXI/Ethernet bench instruments behind a clean HTTP interface.
 
-**Internal URL:** `http://192.168.2.10:8000`  
-**Via NGINX:** `https://mitchellnet.local/api/bench/`  
-**OpenAPI docs:** `http://192.168.2.10:8000/docs`
+**Direct access:** `http://192.168.2.10:8001`  
+**Via NGINX:** `https://mitchellnet.local/api/bench/` (once the NGINX routing block is configured)  
+**OpenAPI docs:** `http://192.168.2.10:8001/docs`
+
+> **Port note:** The container runs uvicorn on internal port 8000 as normal, but `docker-compose.yml`
+> maps it to host port **8001** because port 8000 is already allocated by LibreNMS on the MitchellNET
+> server.
 
 ---
 
