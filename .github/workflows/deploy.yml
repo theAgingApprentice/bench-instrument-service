@@ -74,7 +74,7 @@ jobs:
           set -euo pipefail
           echo "Waiting for container to be ready..."
           sleep 5
-          status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health)
           echo "Health check status: $status"
           if [ "$status" != "200" ]; then
             echo "ERROR: Health check failed with status $status"

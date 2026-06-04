@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8000:8000"       # Direct access during development; close in production
+      - "8001:8000"       # Direct access during development; close in production
     networks:
       - mitchellnet
     healthcheck:
