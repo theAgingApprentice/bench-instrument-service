@@ -20,11 +20,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements-dev.txt --quiet
+          python3 -m venv /home/andrew/bis-venv
+          /home/andrew/bis-venv/bin/pip install -r requirements-dev.txt --quiet
 
       - name: Run tests
         run: |
-          pytest tests/ -v
+          /home/andrew/bis-venv/bin/pytest tests/ -v
 
   deploy:
     name: Deploy to Production
