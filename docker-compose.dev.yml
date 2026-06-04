@@ -1,0 +1,8 @@
+# Development override — mounts source for hot-reload.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  bench-instrument-service:
+    build: .
+    volumes:
+      - ./app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

@@ -1,0 +1,10 @@
+# Runtime dependencies — installed in the Docker image
+#
+# pyvisa-py is the pure-Python VISA backend; no NI-VISA required on Ubuntu.
+# The [standard] extra for uvicorn adds websockets + httptools for production throughput.
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pyvisa>=1.14.0
+pyvisa-py>=0.7.0
+pydantic-settings>=2.4.0

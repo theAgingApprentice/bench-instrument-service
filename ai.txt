@@ -1,0 +1,22 @@
+Please build Phase 1 of the Bench Instrument Service exactly as specified in docs/BIS_Implementation_Blueprint.md.
+Start by creating the complete repo scaffolding — every file and directory listed in Section 2 (Repo Structure), with stub content 
+where the implementation isn't written yet. Then implement in this order:
+
+app/config.py — pydantic-settings as per Section 10
+app/drivers/base.py — full implementation as per Section 7
+app/drivers/power_supply_rigol_dp832.py — note it uses port 5555 raw socket, not standard LXI port 5025
+app/drivers/oscilloscope_siglent_sds1202xe.py
+app/drivers/signal_generator_siglent_sdg2042x.py
+app/drivers/multimeter_siglent_sdm3055.py
+app/services/instrument_registry.py
+app/services/command_logger.py
+app/models/common.py then the four instrument model files
+All six routers
+app/main.py
+Dockerfile, docker-compose.yml, docker-compose.dev.yml
+requirements.txt and requirements-dev.txt
+tests/conftest.py and all five test files
+.env.example, .gitignore, README.md
+.github/workflows/deploy.yml
+
+Implement one item at a time and confirm with me before moving to the next. Do not skip ahead.
