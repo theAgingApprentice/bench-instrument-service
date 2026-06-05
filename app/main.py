@@ -103,6 +103,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Bench Instrument Service",
+    root_path="/api/bench",
     description=(
         "REST API that abstracts four LXI/Ethernet bench instruments behind a clean "
         "HTTP interface. See /docs for the full OpenAPI specification."
