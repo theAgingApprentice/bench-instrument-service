@@ -925,3 +925,27 @@ location /api/bench/ {
 ```
 
 The `proxy_read_timeout 120s` is important — multimeter logging jobs and waveform captures can take longer than NGINX's default 60-second timeout.
+
+---
+
+## Deployment History
+
+### Phase 1 — 4 June 2026
+
+Phase 1 successfully deployed to production on 4 June 2026.
+
+#### Port conflict resolution
+
+Port 8000 on the MitchellNET Ubuntu server (`192.168.2.10`) is occupied by LibreNMS. `docker-compose.yml` was updated to map host port **8001** to the container's internal port 8000. The container and uvicorn configuration are unchanged — only the host-side port mapping differs. All direct-access references use `http://192.168.2.10:8001`.
+
+#### Swagger UI root_path fix
+
+The FastAPI constructor in `app/main.py` required `root_path="/api/bench"` to allow Swagger UI to generate correct absolute URLs when served behind the NGINX proxy at `/api/bench/`. Without this, the Swagger UI loaded at `https://mitchellnet.local/api/bench/docs` but could not reach its own OpenAPI JSON because all generated links pointed to `/` rather than `/api/bench/`.
+
+#### Self-hosted runner
+
+The GitHub Actions workflow uses a self-hosted runner installed at `/home/andrew/actions-runner-bis` on the Ubuntu production server. This runner handles both the test job and the deploy job, giving the deploy step direct access to the Docker daemon without requiring SSH credentials.
+
+#### Python venv requirement
+
+The self-hosted runner does not use the GitHub-managed Python environment. A persistent virtual environment at `/home/andrew/bis-venv` must exist on the server before the workflow can run. The test job activates this venv to install `requirements-dev.txt` and execute `pytest`. This venv is created manually once and is not managed by the workflow itself.

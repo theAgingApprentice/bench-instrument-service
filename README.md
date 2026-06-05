@@ -111,6 +111,45 @@ No changes to existing drivers required.
 
 ---
 
+## Deployment Notes
+
+### Port mapping
+
+The container runs uvicorn on internal port **8000**. `docker-compose.yml` maps it to host port **8001** because port 8000 is already allocated by LibreNMS on the MitchellNET Ubuntu server. Do not change the internal port — only the host-side mapping is 8001.
+
+### Access URLs
+
+| Route | URL |
+|---|---|
+| Direct (host network) | `http://192.168.2.10:8001` |
+| Via NGINX proxy | `https://mitchellnet.local/api/bench/` |
+| Swagger UI | `https://mitchellnet.local/api/bench/docs` |
+
+The `root_path="/api/bench"` parameter in the FastAPI constructor is required for Swagger UI to generate correct URLs when accessed through the NGINX proxy at `/api/bench/`.
+
+### Docker network prerequisite
+
+The `mitchellnet` external Docker network must exist on the host before running `docker compose up`. Create it once with:
+
+```bash
+docker network create mitchellnet
+```
+
+If the network does not exist, `docker compose up` will fail with a network not found error.
+
+### CI/CD Python environment
+
+The self-hosted GitHub Actions runner on the Ubuntu server (`/home/andrew/actions-runner-bis`) requires a Python virtual environment at `/home/andrew/bis-venv` for the CI test job. Create it once with:
+
+```bash
+python3 -m venv /home/andrew/bis-venv
+/home/andrew/bis-venv/bin/pip install -r requirements-dev.txt
+```
+
+The workflow's test job activates this venv rather than relying on the system Python.
+
+---
+
 ## Architecture
 
 See [`docs/BIS_Implementation_Blueprint.md`](docs/BIS_Implementation_Blueprint.md) for the full implementation reference.
