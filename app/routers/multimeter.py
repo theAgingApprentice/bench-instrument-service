@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
-from app.dependencies import get_instrument_registry, instrument_session
+from app.dependencies import check_session, get_instrument_registry, instrument_session
 from app.models.multimeter import (
     LogReading,
     LogStatistics,
@@ -15,7 +15,11 @@ from app.models.multimeter import (
 )
 from app.services.instrument_registry import InstrumentRegistry
 
-router = APIRouter(prefix="/v1/multimeter", tags=["Multimeter"])
+router = APIRouter(
+    prefix="/v1/multimeter",
+    tags=["Multimeter"],
+    dependencies=[Depends(check_session)],
+)
 
 # In-memory log store — keyed by UUID, populated by POST /log.
 # Survives for the lifetime of the process; not persisted across restarts.

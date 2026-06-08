@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.dependencies import get_instrument_registry, instrument_session
+from app.dependencies import check_session, get_instrument_registry, instrument_session
 from app.models.signal_generator import (
     SignalGeneratorChannelStatus,
     SignalGeneratorConfigureRequest,
@@ -9,7 +9,11 @@ from app.models.signal_generator import (
 )
 from app.services.instrument_registry import InstrumentRegistry
 
-router = APIRouter(prefix="/v1/signal-generator", tags=["Signal Generator"])
+router = APIRouter(
+    prefix="/v1/signal-generator",
+    tags=["Signal Generator"],
+    dependencies=[Depends(check_session)],
+)
 
 
 @router.get("/status", response_model=SignalGeneratorStatusResponse)
