@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     scpi_timeout_ms: int = 5000
     log_level: str = "info"
     discover_on_startup: bool = True
+    session_timeout_seconds: int = 300
 
 
 settings = Settings()

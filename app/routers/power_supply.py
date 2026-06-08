@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.dependencies import get_instrument_registry, instrument_session
+from app.dependencies import check_session, get_instrument_registry, instrument_session
 from app.models.power_supply import (
     PowerSupplyChannelStatus,
     PowerSupplyConfigureRequest,
@@ -9,7 +9,11 @@ from app.models.power_supply import (
 )
 from app.services.instrument_registry import InstrumentRegistry
 
-router = APIRouter(prefix="/v1/power-supply", tags=["Power Supply"])
+router = APIRouter(
+    prefix="/v1/power-supply",
+    tags=["Power Supply"],
+    dependencies=[Depends(check_session)],
+)
 
 
 @router.get("/status", response_model=PowerSupplyStatusResponse)

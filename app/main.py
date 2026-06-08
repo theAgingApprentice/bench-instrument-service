@@ -25,6 +25,7 @@ from app.routers import (
     multimeter,
     oscilloscope,
     power_supply,
+    sessions,
     signal_generator,
 )
 from app.services import instrument_registry
@@ -116,6 +117,7 @@ app = FastAPI(
 app.include_router(health.router)
 
 # All instrument endpoints are under /v1/ (prefix set in each router).
+app.include_router(sessions.router)
 app.include_router(instruments.router)
 app.include_router(oscilloscope.router)
 app.include_router(signal_generator.router)

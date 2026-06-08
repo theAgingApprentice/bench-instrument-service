@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 
-from app.dependencies import get_instrument_registry, instrument_session
+from app.dependencies import check_session, get_instrument_registry, instrument_session
 from app.models.oscilloscope import (
     OscilloscopeCaptureRequest,
     OscilloscopeCaptureResponse,
@@ -15,7 +15,11 @@ from app.models.oscilloscope import (
 )
 from app.services.instrument_registry import InstrumentRegistry
 
-router = APIRouter(prefix="/v1/oscilloscope", tags=["Oscilloscope"])
+router = APIRouter(
+    prefix="/v1/oscilloscope",
+    tags=["Oscilloscope"],
+    dependencies=[Depends(check_session)],
+)
 
 
 @router.get("/status", response_model=OscilloscopeStatusResponse)

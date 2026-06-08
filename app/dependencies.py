@@ -8,12 +8,13 @@ Provides:
 """
 
 from contextlib import contextmanager
-from typing import Generator
+from typing import Generator, Optional
 
-from fastapi import HTTPException, Request
+from fastapi import Header, HTTPException, Request
 
 from app.services.command_logger import command_logger
 from app.services.instrument_registry import InstrumentRegistry, get_registry
+from app.services.session_manager import SessionInfo, session_manager
 
 
 def get_instrument_registry(request: Request) -> Generator[InstrumentRegistry, None, None]:
@@ -24,6 +25,17 @@ def get_instrument_registry(request: Request) -> Generator[InstrumentRegistry, N
         yield get_registry()
     finally:
         command_logger.reset_client_ip(token)
+
+
+def check_session(
+    x_session_id: Optional[str] = Header(default=None),
+) -> Optional[SessionInfo]:
+    """Validate an optional X-Session-ID header against the active session.
+
+    Passes through if no session is active (open access).
+    Raises 423 if a session is held by someone else.
+    """
+    return session_manager.validate(x_session_id or "")
 
 
 @contextmanager
