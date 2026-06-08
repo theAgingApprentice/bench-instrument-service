@@ -57,8 +57,16 @@ class CommandLogger:
 
     @staticmethod
     def reset_client_ip(token: contextvars.Token) -> None:
-        """Restore the previous client IP value using the token from set_client_ip()."""
-        _client_ip_var.reset(token)
+        """Restore the previous client IP value using the token from set_client_ip().
+
+        Falls back to set("unknown") when the token was created in a different async
+        context (stacked FastAPI dependencies can run setup and teardown in separate
+        context copies, making reset() raise ValueError).
+        """
+        try:
+            _client_ip_var.reset(token)
+        except ValueError:
+            _client_ip_var.set("unknown")
 
 
 # Module-level singleton used by BaseInstrumentDriver and middleware.
