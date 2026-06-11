@@ -16,9 +16,10 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from app.config import settings
+from app.dependencies import verify_api_key
 from app.routers import (
     health,
     instruments,
@@ -113,13 +114,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Health endpoint — no /v1 prefix, matches GET /health exactly.
+# Health endpoint — unprotected
 app.include_router(health.router)
 
-# All instrument endpoints are under /v1/ (prefix set in each router).
-app.include_router(sessions.router)
-app.include_router(instruments.router)
-app.include_router(oscilloscope.router)
-app.include_router(signal_generator.router)
-app.include_router(multimeter.router)
-app.include_router(power_supply.router)
+# All instrument routers require API key auth
+_auth = [Depends(verify_api_key)]
+app.include_router(sessions.router,         dependencies=_auth)
+app.include_router(instruments.router,      dependencies=_auth)
+app.include_router(oscilloscope.router,     dependencies=_auth)
+app.include_router(signal_generator.router, dependencies=_auth)
+app.include_router(multimeter.router,       dependencies=_auth)
+app.include_router(power_supply.router,     dependencies=_auth)
