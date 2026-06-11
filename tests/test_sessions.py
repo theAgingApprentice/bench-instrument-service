@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
 
 from app.main import app
-from app.dependencies import get_instrument_registry
+from app.dependencies import get_instrument_registry, verify_api_key
 from app.services.command_logger import command_logger
 from app.services.session_manager import session_manager
 from tests.conftest import FAKE_ENTRIES, _INSTRUMENT_NAMES
@@ -43,8 +43,10 @@ def reset_session():
 
 @pytest.fixture
 def session_client():
+    app.dependency_overrides[verify_api_key] = lambda: None
     with TestClient(app) as c:
         yield c
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -63,6 +65,7 @@ def instrument_client(mock_drivers):
     registry.get_driver.side_effect = mock_drivers.get
 
     app.dependency_overrides[get_instrument_registry] = lambda: registry
+    app.dependency_overrides[verify_api_key] = lambda: None
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
@@ -208,6 +211,7 @@ def stacked_dep_client(mock_drivers):
             command_logger.reset_client_ip(token)
 
     app.dependency_overrides[get_instrument_registry] = gen_override
+    app.dependency_overrides[verify_api_key] = lambda: None
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

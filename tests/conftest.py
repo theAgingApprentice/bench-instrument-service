@@ -23,13 +23,14 @@ os.environ.setdefault("BIS_SIGNAL_GENERATOR_IP", "192.168.2.46")
 os.environ.setdefault("BIS_MULTIMETER_IP", "192.168.2.20")
 os.environ.setdefault("BIS_POWER_SUPPLY_IP", "192.168.2.27")
 os.environ.setdefault("BIS_DISCOVER_ON_STARTUP", "false")  # don't probe real instruments
+os.environ.setdefault("API_KEY", "test-key")
 
 # ---------------------------------------------------------------------------
 # App imports (after env vars are set)
 # ---------------------------------------------------------------------------
 
 from app.main import app  # noqa: E402
-from app.dependencies import get_instrument_registry  # noqa: E402
+from app.dependencies import get_instrument_registry, verify_api_key  # noqa: E402
 from app.services.instrument_registry import InstrumentEntry  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -101,6 +102,7 @@ def client(mock_drivers: dict[str, MagicMock]):
     registry.get_driver.side_effect = mock_drivers.get
 
     app.dependency_overrides[get_instrument_registry] = lambda: registry
+    app.dependency_overrides[verify_api_key] = lambda: None  # auth tested separately in test_auth.py
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

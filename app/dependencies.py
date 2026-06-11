@@ -7,10 +7,13 @@ Provides:
                               operation and always disconnects on exit.
 """
 
+import hmac
+import os
 from contextlib import contextmanager
 from typing import Generator, Optional
 
-from fastapi import Header, HTTPException, Request
+from fastapi import Header, HTTPException, Request, Security
+from fastapi.security.api_key import APIKeyHeader
 
 from app.services.command_logger import command_logger
 from app.services.instrument_registry import InstrumentRegistry, get_registry
@@ -70,3 +73,15 @@ def instrument_session(registry: InstrumentRegistry, name: str):
             driver.disconnect()
         except Exception:
             pass
+
+
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def verify_api_key(api_key: str = Security(_api_key_header)) -> None:
+    """Reject requests that do not carry a valid X-API-Key header."""
+    expected = os.environ.get("API_KEY", "")
+    if not expected:
+        raise HTTPException(status_code=500, detail="Server misconfiguration")
+    if not api_key or not hmac.compare_digest(api_key, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
