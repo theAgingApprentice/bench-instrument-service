@@ -104,6 +104,10 @@ async def lifespan(app: FastAPI):
 # FastAPI application
 # ---------------------------------------------------------------------------
 
+_docs_url = "/docs" if settings.enable_docs else None
+_redoc_url = "/redoc" if settings.enable_docs else None
+_openapi_url = "/openapi.json" if settings.enable_docs else None
+
 app = FastAPI(
     title="Bench Instrument Service",
     root_path="/api/bench",
@@ -112,6 +116,9 @@ app = FastAPI(
         "HTTP interface. See /docs for the full OpenAPI specification."
     ),
     version="1.0.0",
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
+    openapi_url=_openapi_url,
     lifespan=lifespan,
 )
 
