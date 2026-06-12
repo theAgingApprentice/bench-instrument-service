@@ -17,6 +17,7 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.dependencies import verify_api_key
@@ -112,6 +113,17 @@ app = FastAPI(
     ),
     version="1.0.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://192.168.2.10",
+        "https://mitchellnet.local",
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
 )
 
 # Health endpoint — unprotected
