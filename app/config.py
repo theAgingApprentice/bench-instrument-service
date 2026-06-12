@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     log_level: str = "info"
     discover_on_startup: bool = True
     session_timeout_seconds: int = 300
+    enable_docs: bool = False
 
 
 settings = Settings()

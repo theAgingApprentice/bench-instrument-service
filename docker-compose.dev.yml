@@ -3,6 +3,8 @@
 services:
   bench-instrument-service:
     build: .
+    environment:
+      - BIS_ENABLE_DOCS=true
     volumes:
       - ./app:/app/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
