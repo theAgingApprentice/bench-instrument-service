@@ -8,6 +8,7 @@ Provides:
 """
 
 import hmac
+import logging
 import os
 from contextlib import contextmanager
 from typing import Generator, Optional
@@ -18,6 +19,8 @@ from fastapi.security.api_key import APIKeyHeader
 from app.services.command_logger import command_logger
 from app.services.instrument_registry import InstrumentRegistry, get_registry
 from app.services.session_manager import SessionInfo, session_manager
+
+logger = logging.getLogger(__name__)
 
 
 def get_instrument_registry(request: Request) -> Generator[InstrumentRegistry, None, None]:
@@ -51,7 +54,8 @@ def instrument_session(registry: InstrumentRegistry, name: str):
     """
     driver = registry.get_driver(name)
     if driver is None:
-        raise HTTPException(status_code=500, detail=f"No driver registered for '{name}'")
+        logger.error("No driver registered for instrument '%s'", name)
+        raise HTTPException(status_code=500, detail="Instrument unavailable")
 
     entry = registry.get_entry(name)
     ip = entry.ip if entry else "unknown"
@@ -61,13 +65,14 @@ def instrument_session(registry: InstrumentRegistry, name: str):
         if not connected:
             raise HTTPException(
                 status_code=503,
-                detail=f"{name} ({ip}) is not reachable — instrument may be powered off",
+                detail="Instrument unavailable — check power and network",
             )
         yield driver
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        logger.error("Instrument connection error for '%s': %s", name, exc, exc_info=True)
+        raise HTTPException(status_code=503, detail="Instrument unavailable") from exc
     finally:
         try:
             driver.disconnect()
