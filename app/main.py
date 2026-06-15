@@ -30,6 +30,7 @@ from app.routers import (
     power_supply,
     sessions,
     signal_generator,
+    webhooks,
 )
 from app.services import instrument_registry
 
@@ -76,6 +77,8 @@ def _configure_logging(log_level: str) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+
     _configure_logging(settings.log_level)
 
     logger.info(
@@ -96,7 +99,48 @@ async def lifespan(app: FastAPI):
 
     logger.info("BIS ready — health_status=%s", registry.health_status)
 
+    # Track previous reachability state so we only fire webhooks on transitions
+    _prev_reachable: dict[str, bool] = {
+        name: entry.reachable for name, entry in registry.all_entries().items()
+    }
+
+    async def _health_check_loop():
+        from app.services.webhook_manager import webhook_manager
+        from datetime import datetime, timezone
+        while True:
+            await asyncio.sleep(30)
+            try:
+                registry.discover()
+                for name, entry in registry.all_entries().items():
+                    prev = _prev_reachable.get(name, True)
+                    if prev and not entry.reachable:
+                        webhook_manager.fire("instrument.unreachable", {
+                            "instrument": name,
+                            "ip": entry.ip,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        })
+                        logger.warning("instrument=%s became unreachable", name)
+                    elif not prev and entry.reachable:
+                        webhook_manager.fire("instrument.recovered", {
+                            "instrument": name,
+                            "ip": entry.ip,
+                            "identity": entry.identity,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        })
+                        logger.info("instrument=%s recovered", name)
+                    _prev_reachable[name] = entry.reachable
+            except Exception as exc:
+                logger.error("health check loop error: %s", exc)
+
+    task = asyncio.create_task(_health_check_loop())
+
     yield
+
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
     logger.info("BIS shutting down")
 
@@ -145,4 +189,5 @@ app.include_router(oscilloscope.router,     dependencies=_auth)
 app.include_router(signal_generator.router, dependencies=_auth)
 app.include_router(multimeter.router,       dependencies=_auth)
 app.include_router(power_supply.router,     dependencies=_auth)
+app.include_router(webhooks.router,         dependencies=_auth)
 app.mount("/", StaticFiles(directory="app/static", html=True), name="static")

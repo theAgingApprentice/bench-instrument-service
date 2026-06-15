@@ -53,10 +53,10 @@ def log_measurements(
     """Take repeated measurements over a duration and return results with statistics.
 
     The response includes a log_id that can be used with GET /log/{log_id}/csv.
+    Fires a measurement.log_complete webhook event on completion.
     """
     with instrument_session(registry, "multimeter") as driver:
         raw = driver.log_measurements(req.mode, req.duration_seconds, req.interval_seconds)
-
     log_id = str(uuid.uuid4())
     response = MultimeterLogResponse(
         log_id=log_id,
@@ -67,6 +67,14 @@ def log_measurements(
         statistics=LogStatistics(**raw["statistics"]),
     )
     _log_store[log_id] = response
+    from app.services.webhook_manager import webhook_manager
+    webhook_manager.fire("measurement.log_complete", {
+        "log_id": log_id,
+        "mode": response.mode,
+        "unit": response.unit,
+        "count": response.count,
+        "statistics": response.statistics.model_dump(),
+    })
     return response
 
 
