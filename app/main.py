@@ -18,6 +18,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.dependencies import verify_api_key
@@ -129,7 +130,7 @@ app.add_middleware(
         "https://mitchellnet.local",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE", "PUT"],
     allow_headers=["*"],
 )
 
@@ -144,3 +145,4 @@ app.include_router(oscilloscope.router,     dependencies=_auth)
 app.include_router(signal_generator.router, dependencies=_auth)
 app.include_router(multimeter.router,       dependencies=_auth)
 app.include_router(power_supply.router,     dependencies=_auth)
+app.mount("/", StaticFiles(directory="app/static", html=True), name="static")

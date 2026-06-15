@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BIS — Bench Instrument Service</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Bench Instrument Service</h1>
+      <div class="header-meta">
+        <span id="overall-status" class="badge badge--unknown">—</span>
+        <span id="uptime" class="uptime">uptime: —</span>
+        <span id="last-updated" class="last-updated">last updated: —</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <h2>Instruments</h2>
+      <div class="card-grid" id="instrument-grid">
+        <div class="card" id="card-oscilloscope">
+          <div class="card-header">
+            <span class="card-title">Oscilloscope</span>
+            <span class="status-dot dot--unknown"></span>
+          </div>
+          <div class="card-body">
+            <div class="card-row"><span class="label">IP</span><span class="value" id="osc-ip">—</span></div>
+            <div class="card-row"><span class="label">Identity</span><span class="value identity" id="osc-identity">—</span></div>
+            <div class="card-row"><span class="label">Status</span><span class="value" id="osc-status">—</span></div>
+          </div>
+        </div>
+
+        <div class="card" id="card-signal_generator">
+          <div class="card-header">
+            <span class="card-title">Signal Generator</span>
+            <span class="status-dot dot--unknown"></span>
+          </div>
+          <div class="card-body">
+            <div class="card-row"><span class="label">IP</span><span class="value" id="sig-ip">—</span></div>
+            <div class="card-row"><span class="label">Identity</span><span class="value identity" id="sig-identity">—</span></div>
+            <div class="card-row"><span class="label">Status</span><span class="value" id="sig-status">—</span></div>
+          </div>
+        </div>
+
+        <div class="card" id="card-multimeter">
+          <div class="card-header">
+            <span class="card-title">Multimeter</span>
+            <span class="status-dot dot--unknown"></span>
+          </div>
+          <div class="card-body">
+            <div class="card-row"><span class="label">IP</span><span class="value" id="mm-ip">—</span></div>
+            <div class="card-row"><span class="label">Identity</span><span class="value identity" id="mm-identity">—</span></div>
+            <div class="card-row"><span class="label">Status</span><span class="value" id="mm-status">—</span></div>
+          </div>
+        </div>
+
+        <div class="card" id="card-power_supply">
+          <div class="card-header">
+            <span class="card-title">Power Supply</span>
+            <span class="status-dot dot--unknown"></span>
+          </div>
+          <div class="card-body">
+            <div class="card-row"><span class="label">IP</span><span class="value" id="psu-ip">—</span></div>
+            <div class="card-row"><span class="label">Identity</span><span class="value identity" id="psu-identity">—</span></div>
+            <div class="card-row"><span class="label">Status</span><span class="value" id="psu-status">—</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Active Session</h2>
+      <div class="card card--wide" id="session-card">
+        <div id="session-none" class="session-none">No active session</div>
+        <div id="session-active" class="session-active hidden">
+          <div class="card-row"><span class="label">Client</span><span class="value" id="sess-client">—</span></div>
+          <div class="card-row"><span class="label">Token</span><span class="value mono" id="sess-token">—</span></div>
+          <div class="card-row"><span class="label">Expires</span><span class="value" id="sess-expires">—</span></div>
+          <div class="card-row"><span class="label">Time remaining</span><span class="value" id="sess-remaining">—</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
