@@ -73,15 +73,18 @@ jobs:
         run: |
           set -euo pipefail
           echo "Waiting for container to be ready..."
-          sleep 5
-          status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health)
-          echo "Health check status: $status"
-          if [ "$status" != "200" ]; then
-            echo "ERROR: Health check failed with status $status"
-            docker compose -f /home/andrew/services/bench-instrument-service/docker-compose.yml logs bench-instrument-service
-            exit 1
-          fi
-          echo "✅ BIS deployment verified successfully"
+          for i in $(seq 1 12); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health || echo "000")
+            echo "  Attempt $i: $status"
+            if [ "$status" = "200" ]; then
+              echo "✅ BIS deployment verified successfully"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "ERROR: Health check failed after 60s"
+          docker compose -f /home/andrew/services/bench-instrument-service/docker-compose.yml logs bench-instrument-service
+          exit 1
 
       - name: Deployment summary
         run: |
