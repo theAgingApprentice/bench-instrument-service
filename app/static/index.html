@@ -4,21 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BIS — Bench Instrument Service</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/api/bench/style.css" />
 </head>
 <body>
-  <header>
-    <div class="header-inner">
-      <h1>Bench Instrument Service</h1>
-      <div class="header-meta">
-        <span id="overall-status" class="badge badge--unknown">—</span>
-        <span id="uptime" class="uptime">uptime: —</span>
-        <span id="last-updated" class="last-updated">last updated: —</span>
-      </div>
-    </div>
-  </header>
+  <div id="env-banner" class="env-prod"></div>
+  <div data-include="/includes/header.html"></div>
 
   <main>
+    <section class="section">
+      <div class="header-inner">
+        <h1>Bench Instrument Service</h1>
+        <div class="header-meta">
+          <span id="overall-status" class="badge badge--unknown">—</span>
+          <span id="uptime" class="uptime">uptime: —</span>
+          <span id="last-updated" class="last-updated">last updated: —</span>
+        </div>
+      </div>
+    </section>
+
     <section class="section">
       <h2>Instruments</h2>
       <div class="card-grid" id="instrument-grid">
@@ -86,6 +90,9 @@
     </section>
   </main>
 
-  <script src="dashboard.js"></script>
+  <div data-include="/includes/footer.html"></div>
+
+  <script src="/api/bench/dashboard.js"></script>
+  <script src="/js/includes.js" defer></script>
 </body>
 </html>
