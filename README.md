@@ -53,8 +53,8 @@ Instrument endpoints are openly accessible when no session is active. When a ses
 
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
-| GET | `/v1/oscilloscope/status` | API key | Channel coupling, scale, offset, probe ratio, and timebase |
-| POST | `/v1/oscilloscope/configure` | API key | Set channel and timebase parameters |
+| GET | `/v1/oscilloscope/status` | API key | Channel coupling, scale, offset, probe ratio, timebase, and trigger |
+| POST | `/v1/oscilloscope/configure` | API key | Set channel, timebase, and trigger parameters |
 | POST | `/v1/oscilloscope/capture` | API key | Capture waveform data from one or both channels |
 | POST | `/v1/oscilloscope/screenshot` | API key | Capture display screenshot (returns PNG binary) |
 
@@ -125,7 +125,7 @@ with BenchClient(api_key="your-key") as bench:
     token = bench.acquire_session("rc-experiment-3")
 
     # Oscilloscope
-    waveform = bench.capture_waveform(token, channel=1, points=1000)
+    waveform = bench.capture_waveform(token, channel=1)
 
     # Signal generator
     bench.configure_signal(token, waveform="SINE", freq_hz=1000.0, amplitude_v=1.0)

@@ -136,11 +136,10 @@ class TestOscilloscope:
     def test_capture_waveform_posts_correct_body(self):
         payload = {"channel": 1, "time_s": [0.0], "voltage_v": [1.0]}
         with _mock_urlopen(payload) as mock_open:
-            CLIENT.capture_waveform("tok", channel=1, points=500)
+            CLIENT.capture_waveform("tok", channel=1)
         req = mock_open.call_args[0][0]
         body = json.loads(req.data)
-        assert body["channel"] == 1
-        assert body["points"] == 500
+        assert body["channels"] == [1]
 
     def test_capture_waveform_returns_dict(self):
         payload = {"channel": 1, "time_s": [], "voltage_v": []}
@@ -155,14 +154,14 @@ class TestOscilloscope:
 
 class TestSignalGenerator:
     def test_configure_signal_posts_correct_body(self):
-        payload = {"channel": 1, "waveform": "SINE", "frequency_hz": 1000.0}
+        payload = {"channel": 1, "waveform": "SINE", "frequency": 1000.0}
         with _mock_urlopen(payload) as mock_open:
             CLIENT.configure_signal("tok", channel=1, waveform="SINE", freq_hz=1000.0, amplitude_v=2.0)
         req = mock_open.call_args[0][0]
         body = json.loads(req.data)
         assert body["waveform"] == "SINE"
-        assert body["frequency_hz"] == 1000.0
-        assert body["amplitude_v"] == 2.0
+        assert body["frequency"] == 1000.0
+        assert body["amplitude"] == 2.0
 
     def test_enable_output_posts_enabled_flag(self):
         with _mock_urlopen({"channel": 1, "enabled": True}) as mock_open:
@@ -178,13 +177,13 @@ class TestSignalGenerator:
 
 class TestPowerSupply:
     def test_set_psu_channel_posts_correct_body(self):
-        payload = {"channel": 2, "voltage_v": 5.0, "current_limit_a": 1.0}
+        payload = {"channel": 2, "voltage": 5.0, "current_limit": 1.0}
         with _mock_urlopen(payload) as mock_open:
             CLIENT.set_psu_channel("tok", channel=2, voltage_v=5.0, current_limit_a=1.0)
         req = mock_open.call_args[0][0]
         body = json.loads(req.data)
         assert body["channel"] == 2
-        assert body["voltage_v"] == 5.0
+        assert body["voltage"] == 5.0
 
     def test_enable_psu_channel_sends_correct_body(self):
         with _mock_urlopen({"channel": 1, "enabled": False}) as mock_open:
