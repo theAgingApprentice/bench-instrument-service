@@ -41,17 +41,21 @@ def configure(
     req: OscilloscopeConfigureRequest,
     registry: InstrumentRegistry = Depends(get_instrument_registry),
 ):
-    """Set channel and/or timebase parameters. Only supplied fields are applied."""
+    """Set channel, timebase, and/or trigger parameters. Only supplied fields are applied."""
     with instrument_session(registry, "oscilloscope") as driver:
-        driver.configure_channel(
-            channel=req.channel,
-            coupling=req.coupling,
-            scale=req.scale,
-            offset=req.offset,
-            probe=req.probe,
-        )
-        if req.timebase_scale is not None:
-            driver.configure_timebase(scale=req.timebase_scale)
+        if req.channel_config is not None:
+            driver.configure_channel(
+                channel=req.channel,
+                coupling=req.channel_config.coupling,
+                scale=req.channel_config.scale,
+                offset=req.channel_config.offset,
+                probe=req.channel_config.probe,
+            )
+        if req.timebase is not None:
+            driver.configure_timebase(
+                scale=req.timebase.scale,
+                offset=req.timebase.offset,
+            )
         if req.trigger is not None:
             driver.configure_trigger(
                 source=req.trigger.source,

@@ -224,6 +224,7 @@ class BenchClient:
         offset: float | None = None,
         probe: int | None = None,
         timebase_scale: float | None = None,
+        timebase_offset: float | None = None,
         trigger_source: int | None = None,
         trigger_level: float | None = None,
         trigger_slope: str | None = None,
@@ -239,6 +240,7 @@ class BenchClient:
             offset:          Vertical offset in V.
             probe:           Probe attenuation ratio, e.g. 10.
             timebase_scale:  Horizontal timebase in s/div.
+            timebase_offset: Trigger delay offset in seconds.
             trigger_source:  Trigger source channel (1 or 2).
             trigger_level:   Trigger level in V.
             trigger_slope:   "POS", "NEG", or "WINDOW".
@@ -248,16 +250,15 @@ class BenchClient:
             {"ok": True} on success.
         """
         body: dict = {"channel": channel}
-        if coupling is not None:
-            body["coupling"] = coupling
-        if scale is not None:
-            body["scale"] = scale
-        if offset is not None:
-            body["offset"] = offset
-        if probe is not None:
-            body["probe"] = probe
-        if timebase_scale is not None:
-            body["timebase_scale"] = timebase_scale
+        if coupling is not None or scale is not None or offset is not None or probe is not None:
+            body["channel_config"] = {
+                "coupling": coupling,
+                "scale": scale,
+                "offset": offset,
+                "probe": probe,
+            }
+        if timebase_scale is not None or timebase_offset is not None:
+            body["timebase"] = {"scale": timebase_scale, "offset": timebase_offset}
         if trigger_source is not None or trigger_level is not None or trigger_slope is not None or trigger_mode is not None:
             body["trigger"] = {
                 "source": trigger_source,
