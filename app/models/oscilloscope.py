@@ -20,6 +20,13 @@ class OscilloscopeTimebaseStatus(BaseModel):
     offset: float
 
 
+class TriggerStatus(BaseModel):
+    source: int
+    mode: str
+    level: float
+    slope: str
+
+
 class WaveformData(BaseModel):
     enabled: bool
     sample_rate: float
@@ -36,6 +43,13 @@ class WaveformData(BaseModel):
 # Request models
 # ---------------------------------------------------------------------------
 
+class TriggerConfigRequest(BaseModel):
+    source: Optional[int] = None         # channel 1 or 2
+    level: Optional[float] = None         # V
+    slope: Optional[str] = None           # "POS" | "NEG" | "WINDOW"
+    mode: Optional[str] = None            # "AUTO" | "NORM" | "SINGLE" | "STOP"
+
+
 class OscilloscopeConfigureRequest(BaseModel):
     channel: int = Field(..., ge=1, le=2)
     coupling: Optional[str] = None       # "DC" | "AC" | "GND"
@@ -43,6 +57,7 @@ class OscilloscopeConfigureRequest(BaseModel):
     offset: Optional[float] = None       # V
     probe: Optional[int] = None          # attenuation ratio e.g. 10
     timebase_scale: Optional[float] = None  # s/div
+    trigger: Optional[TriggerConfigRequest] = None
 
 
 class OscilloscopeCaptureRequest(BaseModel):
@@ -57,6 +72,7 @@ class OscilloscopeStatusResponse(BaseModel):
     channel_1: OscilloscopeChannelStatus
     channel_2: OscilloscopeChannelStatus
     timebase: OscilloscopeTimebaseStatus
+    trigger: TriggerStatus
 
 
 class OscilloscopeCaptureResponse(BaseModel):
