@@ -86,3 +86,27 @@ class TestConfigureTriggerWireFormat:
     def test_mode_sends_trmd(self, driver):
         driver.configure_trigger(mode="AUTO")
         driver._resource.write.assert_called_once_with("TRMD AUTO")
+
+
+class TestCaptureWaveformWireFormat:
+    def test_sara_query_has_no_channel_prefix(self, driver):
+        """SARA (sample rate) is a global acquisition property on this
+        instrument, not per-channel -- 'C1:SARA?' hangs forever on real
+        hardware (confirmed 5 July 2026 while running RC-Experiments
+        against the real SDS1202X-E). Only bare 'SARA?' is valid.
+        """
+        responses = {
+            "C1:VDIV?": "C1:VDIV 500.00mV",
+            "C1:OFST?": "C1:OFST 0.00V",
+            "TDIV?": "TDIV 1.00ms",
+            "C1:ATTN?": "C1:ATTN 10",
+            "SARA?": "SARA 1.00GSa/s",
+        }
+        driver._resource.query.side_effect = lambda cmd: responses[cmd]
+        driver._resource.read_raw.return_value = b"C1:WF DAT2,#14" + bytes([0, 1, 2, 3])
+
+        driver.capture_waveform(channel=1)
+
+        queried_commands = [call.args[0] for call in driver._resource.query.call_args_list]
+        assert "SARA?" in queried_commands
+        assert "C1:SARA?" not in queried_commands

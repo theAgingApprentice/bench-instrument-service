@@ -150,7 +150,7 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         ofst = _parse_siglent_value(self.query(f"{ch}:OFST?"))
         tdiv = _parse_siglent_value(self.query("TDIV?"))
         probe = int(_parse_siglent_value(self.query(f"{ch}:ATTN?")))
-        sara = _parse_siglent_value(self.query(f"{ch}:SARA?"))
+        sara = _parse_siglent_value(self.query("SARA?"))
 
         # Request raw ADC data — response is IEEE 488.2 block preceded by echo.
         self._resource.write(f"{ch}:WF? DAT2")
