@@ -1,0 +1,88 @@
+"""Driver-level tests for the Siglent SDS1202X-E oscilloscope driver.
+
+These tests assert on the literal SCPI strings sent via write()/query().
+They exist because router- and contract-level tests mock the driver itself
+and therefore cannot catch SCPI syntax bugs (e.g. the CPL coupling
+D1M/A1M vs DC1M/AC1M mismatch found in July 2026 — see PR #25/#26).
+"""
+
+from unittest.mock import MagicMock, call
+
+import pytest
+
+from app.drivers.oscilloscope_siglent_sds1202xe import OscilloscopeSiglentSDS1202XE
+
+
+@pytest.fixture
+def driver():
+    """Driver instance with a mocked VISA resource, bypassing real connect()."""
+    d = OscilloscopeSiglentSDS1202XE(ip="192.0.2.1")
+    d._resource = MagicMock()
+    return d
+
+
+class TestConfigureChannelWireFormat:
+    def test_coupling_dc_sends_d1m(self, driver):
+        driver.configure_channel(channel=1, coupling="DC")
+        driver._resource.write.assert_called_once_with("C1:CPL D1M")
+
+    def test_coupling_ac_sends_a1m(self, driver):
+        driver.configure_channel(channel=1, coupling="AC")
+        driver._resource.write.assert_called_once_with("C1:CPL A1M")
+
+    def test_coupling_gnd_sends_gnd(self, driver):
+        driver.configure_channel(channel=2, coupling="GND")
+        driver._resource.write.assert_called_once_with("C2:CPL GND")
+
+    def test_invalid_coupling_raises_and_sends_nothing(self, driver):
+        with pytest.raises(ValueError):
+            driver.configure_channel(channel=1, coupling="BOGUS")
+        driver._resource.write.assert_not_called()
+
+    def test_scale_sends_vdiv(self, driver):
+        driver.configure_channel(channel=1, scale=1.0)
+        driver._resource.write.assert_called_once_with("C1:VDIV 1.0V")
+
+    def test_offset_sends_ofst(self, driver):
+        driver.configure_channel(channel=1, offset=-0.5)
+        driver._resource.write.assert_called_once_with("C1:OFST -0.5V")
+
+    def test_probe_sends_attn(self, driver):
+        driver.configure_channel(channel=1, probe=10)
+        driver._resource.write.assert_called_once_with("C1:ATTN 10")
+
+    def test_all_channel_params_send_all_commands_in_order(self, driver):
+        driver.configure_channel(channel=1, coupling="DC", scale=1.0, offset=0.0, probe=10)
+        driver._resource.write.assert_has_calls([
+            call("C1:CPL D1M"),
+            call("C1:VDIV 1.0V"),
+            call("C1:OFST 0.0V"),
+            call("C1:ATTN 10"),
+        ])
+
+
+class TestConfigureTimebaseWireFormat:
+    def test_scale_sends_tdiv(self, driver):
+        driver.configure_timebase(scale=0.001)
+        driver._resource.write.assert_called_once_with("TDIV 0.001S")
+
+    def test_offset_sends_trdl(self, driver):
+        driver.configure_timebase(offset=0.0)
+        driver._resource.write.assert_called_once_with("TRDL 0.0S")
+
+
+class TestConfigureTriggerWireFormat:
+    def test_source_sends_trse(self, driver):
+        driver.configure_trigger(source=1)
+        driver._resource.write.assert_called_once_with("TRSE EDGE,SR,C1")
+
+    def test_source_and_level_sends_both_in_order(self, driver):
+        driver.configure_trigger(source=1, level=0.5)
+        driver._resource.write.assert_has_calls([
+            call("TRSE EDGE,SR,C1"),
+            call("C1:TRLV 0.5V"),
+        ])
+
+    def test_mode_sends_trmd(self, driver):
+        driver.configure_trigger(mode="AUTO")
+        driver._resource.write.assert_called_once_with("TRMD AUTO")

@@ -222,12 +222,14 @@ bench-instrument-service/
 │       └── dashboard.js         # Polling logic — GET /health/full every 10s
 │
 ├── tests/
-│   ├── conftest.py              # Pytest fixtures, mock instrument factory
+│   ├── conftest.py                     # Pytest fixtures, mock instrument factory
 │   ├── test_auth.py
 │   ├── test_bench_client.py
+│   ├── test_bench_client_contracts.py  # Asserts bench_client.py request bodies match Pydantic models
 │   ├── test_command_logger.py
 │   ├── test_health.py
 │   ├── test_oscilloscope.py
+│   ├── test_oscilloscope_driver.py     # Driver-level: asserts literal SCPI strings sent to write()
 │   ├── test_signal_generator.py
 │   ├── test_multimeter.py
 │   ├── test_power_supply.py

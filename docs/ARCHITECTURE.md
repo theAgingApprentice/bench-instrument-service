@@ -47,14 +47,19 @@ bench-instrument-service/
 │   ├── drivers/             # Low-level SCPI instrument drivers
 │   └── services/            # InstrumentRegistry, SessionManager, CommandLogger
 ├── tests/
-│   ├── conftest.py          # Shared fixtures; auth bypassed for business-logic tests
-│   ├── test_auth.py         # Auth-specific tests with real verify_api_key
+│   ├── conftest.py                     # Shared fixtures; auth bypassed for business-logic tests
+│   ├── test_auth.py                    # Auth-specific tests with real verify_api_key
+│   ├── test_bench_client.py            # bench_client.py HTTP behavior against a mocked BIS
+│   ├── test_bench_client_contracts.py  # Asserts bench_client.py request bodies match Pydantic models
+│   ├── test_command_logger.py
+│   ├── test_health.py
 │   ├── test_sessions.py
-│   ├── test_instruments.py
-│   ├── test_oscilloscope.py
+│   ├── test_oscilloscope.py            # Router-level: mocks the driver
+│   ├── test_oscilloscope_driver.py     # Driver-level: asserts literal SCPI strings sent to write()
 │   ├── test_signal_generator.py
 │   ├── test_multimeter.py
-│   └── test_power_supply.py
+│   ├── test_power_supply.py
+│   └── test_webhooks.py
 ├── docs/
 │   ├── ARCHITECTURE.md      # This file
 │   └── BIS_Implementation_Blueprint.md
@@ -209,3 +214,21 @@ API_KEY=test-key python -m pytest tests/test_auth.py -v
 The `conftest.py` fixture overrides `verify_api_key` with a no-op for all
 business-logic tests, so instrument tests do not need to supply the header.
 Only `test_auth.py` uses the real `verify_api_key` dependency.
+
+### Router-level vs. driver-level instrument tests
+
+Most instrument test files (`test_oscilloscope.py`, `test_signal_generator.py`,
+etc.) mock the driver itself and assert that the router calls it with the
+correct Python arguments. This is fast and good for catching request-shape
+and routing bugs, but it cannot catch bugs in the actual SCPI strings a
+driver sends to hardware — the driver is mocked out entirely.
+
+`test_oscilloscope_driver.py` fills that gap: it mocks only the underlying
+VISA resource and asserts on the literal SCPI string passed to `write()`
+(e.g. `"C1:CPL D1M"`). This pattern exists because a real bug shipped in
+July 2026 where `configure_channel()` sent bare `DC`/`AC` coupling values
+that the SDS1202X-E silently rejected — router-level tests passed the whole
+time since they never touched the wire format. See PR #25/#26.
+
+New drivers or new SCPI-emitting methods should get an equivalent
+driver-level test file alongside their router-level test.
