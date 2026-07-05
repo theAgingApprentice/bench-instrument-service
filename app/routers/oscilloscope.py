@@ -11,6 +11,7 @@ from app.models.oscilloscope import (
     OscilloscopeConfigureRequest,
     OscilloscopeStatusResponse,
     OscilloscopeTimebaseStatus,
+    TriggerStatus,
     WaveformData,
 )
 from app.services.instrument_registry import InstrumentRegistry
@@ -31,6 +32,7 @@ def get_status(registry: InstrumentRegistry = Depends(get_instrument_registry)):
         channel_1=OscilloscopeChannelStatus(**raw["channel_1"]),
         channel_2=OscilloscopeChannelStatus(**raw["channel_2"]),
         timebase=OscilloscopeTimebaseStatus(**raw["timebase"]),
+        trigger=TriggerStatus(**raw["trigger"]),
     )
 
 
@@ -50,6 +52,13 @@ def configure(
         )
         if req.timebase_scale is not None:
             driver.configure_timebase(scale=req.timebase_scale)
+        if req.trigger is not None:
+            driver.configure_trigger(
+                source=req.trigger.source,
+                level=req.trigger.level,
+                slope=req.trigger.slope,
+                mode=req.trigger.mode,
+            )
     return {"ok": True}
 
 

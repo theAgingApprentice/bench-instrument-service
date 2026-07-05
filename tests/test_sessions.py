@@ -25,6 +25,7 @@ _STATUS_PAYLOAD = {
     "channel_1": {"enabled": True, "coupling": "DC", "scale": 1.0, "offset": 0.0, "probe": 10},
     "channel_2": {"enabled": False, "coupling": "DC", "scale": 1.0, "offset": 0.0, "probe": 1},
     "timebase": {"scale": 0.001, "offset": 0.0},
+    "trigger": {"source": 1, "mode": "AUTO", "level": 0.5, "slope": "POS"},
 }
 
 

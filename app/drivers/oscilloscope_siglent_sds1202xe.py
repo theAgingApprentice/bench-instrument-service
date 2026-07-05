@@ -42,6 +42,15 @@ def _parse_coupling(response: str) -> str:
     return "GND"
 
 
+def _parse_trigger_source(response: str) -> int:
+    """Parse a TRSE? response like 'TRSE EDGE,SR,C1,HT,OFF' and return the channel number."""
+    for part in response.strip().split(","):
+        part = part.strip().upper()
+        if part.startswith("C") and part[1:].isdigit():
+            return int(part[1:])
+    raise ValueError(f"Could not parse trigger source from: {response!r}")
+
+
 def _strip_ieee_block_header(raw: bytes) -> bytes:
     """Strip IEEE 488.2 definite-length block header from a binary response.
 
@@ -72,11 +81,12 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
     # ------------------------------------------------------------------
 
     def get_status(self) -> dict:
-        """Return channel settings for both channels plus timebase."""
+        """Return channel settings for both channels plus timebase and trigger."""
         return {
             "channel_1": self._channel_status(1),
             "channel_2": self._channel_status(2),
             "timebase": self._timebase_status(),
+            "trigger": self.trigger_status(),
         }
 
     # ------------------------------------------------------------------
@@ -109,6 +119,24 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
             self.write(f"TDIV {scale}S")
         if offset is not None:
             self.write(f"TRDL {offset}S")
+
+    def configure_trigger(
+        self,
+        source: int | None = None,
+        level: float | None = None,
+        slope: str | None = None,
+        mode: str | None = None,
+    ):
+        """Set trigger source/level/slope/mode. Only supplied arguments are changed."""
+        if source is not None:
+            self._validate_channel(source)
+            self.write(f"TRSE EDGE,SR,C{source}")
+            if level is not None:
+                self.write(f"C{source}:TRLV {level}V")
+            if slope is not None:
+                self.write(f"C{source}:TRSL {slope}")
+        if mode is not None:
+            self.write(f"TRMD {mode}")
 
     def capture_waveform(self, channel: int) -> dict:
         """Capture waveform data from one channel and return scaled arrays."""
@@ -173,6 +201,16 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         return {
             "scale": _parse_siglent_value(self.query("TDIV?")),
             "offset": _parse_siglent_value(self.query("TRDL?")),
+        }
+
+    def trigger_status(self) -> dict:
+        source = _parse_trigger_source(self.query("TRSE?"))
+        ch = f"C{source}"
+        return {
+            "source": source,
+            "mode": self.query("TRMD?").strip().split()[-1].upper(),
+            "level": _parse_siglent_value(self.query(f"{ch}:TRLV?")),
+            "slope": self.query(f"{ch}:TRSL?").strip().split()[-1].upper(),
         }
 
     @staticmethod
