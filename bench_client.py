@@ -198,14 +198,12 @@ class BenchClient:
         self,
         token: str,
         channel: int = 1,
-        points: int = 1000,
     ) -> dict:
         """Capture a waveform from the oscilloscope.
 
         Args:
             token:   Session token.
             channel: Oscilloscope channel (1 or 2).
-            points:  Number of sample points to capture.
 
         Returns:
             Dict with keys: channel, time_s (list), voltage_v (list),
@@ -213,9 +211,61 @@ class BenchClient:
         """
         return self._post(
             "/v1/oscilloscope/capture",
-            body={"channel": channel, "points": points},
+            body={"channels": [channel]},
             token=token,
         )
+
+    def configure_oscilloscope(
+        self,
+        token: str,
+        channel: int,
+        coupling: str | None = None,
+        scale: float | None = None,
+        offset: float | None = None,
+        probe: int | None = None,
+        timebase_scale: float | None = None,
+        trigger_source: int | None = None,
+        trigger_level: float | None = None,
+        trigger_slope: str | None = None,
+        trigger_mode: str | None = None,
+    ) -> dict:
+        """Configure oscilloscope channel, timebase, and/or trigger settings.
+
+        Args:
+            token:           Session token.
+            channel:         Channel to configure (1 or 2).
+            coupling:        "DC", "AC", or "GND".
+            scale:           Vertical scale in V/div.
+            offset:          Vertical offset in V.
+            probe:           Probe attenuation ratio, e.g. 10.
+            timebase_scale:  Horizontal timebase in s/div.
+            trigger_source:  Trigger source channel (1 or 2).
+            trigger_level:   Trigger level in V.
+            trigger_slope:   "POS", "NEG", or "WINDOW".
+            trigger_mode:    "AUTO", "NORM", "SINGLE", or "STOP".
+
+        Returns:
+            {"ok": True} on success.
+        """
+        body: dict = {"channel": channel}
+        if coupling is not None:
+            body["coupling"] = coupling
+        if scale is not None:
+            body["scale"] = scale
+        if offset is not None:
+            body["offset"] = offset
+        if probe is not None:
+            body["probe"] = probe
+        if timebase_scale is not None:
+            body["timebase_scale"] = timebase_scale
+        if trigger_source is not None or trigger_level is not None or trigger_slope is not None or trigger_mode is not None:
+            body["trigger"] = {
+                "source": trigger_source,
+                "level": trigger_level,
+                "slope": trigger_slope,
+                "mode": trigger_mode,
+            }
+        return self._post("/v1/oscilloscope/configure", body=body, token=token)
 
     def oscilloscope_status(self, token: str) -> dict:
         """Return current oscilloscope timebase and trigger settings."""
@@ -252,9 +302,9 @@ class BenchClient:
             body={
                 "channel": channel,
                 "waveform": waveform,
-                "frequency_hz": freq_hz,
-                "amplitude_v": amplitude_v,
-                "offset_v": offset_v,
+                "frequency": freq_hz,
+                "amplitude": amplitude_v,
+                "offset": offset_v,
             },
             token=token,
         )
@@ -298,11 +348,11 @@ class BenchClient:
             Confirmed channel settings from the instrument.
         """
         return self._post(
-            "/v1/power-supply/set",
+            "/v1/power-supply/configure",
             body={
                 "channel": channel,
-                "voltage_v": voltage_v,
-                "current_limit_a": current_limit_a,
+                "voltage": voltage_v,
+                "current_limit": current_limit_a,
             },
             token=token,
         )
@@ -344,7 +394,7 @@ class BenchClient:
     def log_measurements(
         self,
         token: str,
-        mode: str = "DCV",
+        mode: str = "VOLT:DC",
         duration_s: int = 10,
         interval_s: float = 1.0,
     ) -> dict:
