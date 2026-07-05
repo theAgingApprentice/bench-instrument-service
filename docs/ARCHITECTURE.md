@@ -157,8 +157,8 @@ OpenAPI docs available live at `https://mitchellnet.local/api/bench/docs`.
 | DELETE | `/v1/sessions/{id}` | Required | Release session |
 | PUT | `/v1/sessions/{id}/keepalive` | Required | Extend session timeout |
 | GET | `/v1/sessions/status` | Required | Current session status |
-| GET | `/v1/oscilloscope/status` | Required | Oscilloscope current state |
-| POST | `/v1/oscilloscope/configure` | Required | Configure oscilloscope |
+| GET | `/v1/oscilloscope/status` | Required | Oscilloscope current state (channels, timebase, trigger) |
+| POST | `/v1/oscilloscope/configure` | Required | Configure oscilloscope channels, timebase, and trigger |
 | POST | `/v1/oscilloscope/capture` | Required | Capture waveform |
 | POST | `/v1/oscilloscope/screenshot` | Required | Capture screen image |
 | GET | `/v1/signal-generator/status` | Required | Signal generator current state |
