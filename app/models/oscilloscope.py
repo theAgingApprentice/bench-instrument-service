@@ -50,13 +50,22 @@ class TriggerConfigRequest(BaseModel):
     mode: Optional[str] = None            # "AUTO" | "NORM" | "SINGLE" | "STOP"
 
 
-class OscilloscopeConfigureRequest(BaseModel):
-    channel: int = Field(..., ge=1, le=2)
+class ChannelConfigRequest(BaseModel):
     coupling: Optional[str] = None       # "DC" | "AC" | "GND"
     scale: Optional[float] = None        # V/div
     offset: Optional[float] = None       # V
     probe: Optional[int] = None          # attenuation ratio e.g. 10
-    timebase_scale: Optional[float] = None  # s/div
+
+
+class TimebaseConfigRequest(BaseModel):
+    scale: Optional[float] = None        # s/div
+    offset: Optional[float] = None       # s (trigger delay)
+
+
+class OscilloscopeConfigureRequest(BaseModel):
+    channel: int = Field(..., ge=1, le=2)
+    channel_config: Optional[ChannelConfigRequest] = None
+    timebase: Optional[TimebaseConfigRequest] = None
     trigger: Optional[TriggerConfigRequest] = None
 
 

@@ -38,10 +38,35 @@ def test_oscilloscope_status_shape(client: TestClient, mock_drivers):
 
 
 def test_oscilloscope_configure_calls_driver(client: TestClient, mock_drivers):
-    resp = client.post("/v1/oscilloscope/configure", json={"channel": 1, "coupling": "DC", "scale": 0.5})
+    resp = client.post(
+        "/v1/oscilloscope/configure",
+        json={"channel": 1, "channel_config": {"coupling": "DC", "scale": 0.5}},
+    )
     assert resp.status_code == 200
     mock_drivers["oscilloscope"].configure_channel.assert_called_once_with(
         channel=1, coupling="DC", scale=0.5, offset=None, probe=None,
+    )
+
+
+def test_oscilloscope_configure_timebase_calls_driver(client: TestClient, mock_drivers):
+    resp = client.post(
+        "/v1/oscilloscope/configure",
+        json={"channel": 1, "timebase": {"scale": 0.001, "offset": 0.0}},
+    )
+    assert resp.status_code == 200
+    mock_drivers["oscilloscope"].configure_timebase.assert_called_once_with(
+        scale=0.001, offset=0.0,
+    )
+
+
+def test_oscilloscope_configure_trigger_calls_driver(client: TestClient, mock_drivers):
+    resp = client.post(
+        "/v1/oscilloscope/configure",
+        json={"channel": 1, "trigger": {"source": 1, "level": 0.5, "slope": "POS", "mode": "AUTO"}},
+    )
+    assert resp.status_code == 200
+    mock_drivers["oscilloscope"].configure_trigger.assert_called_once_with(
+        source=1, level=0.5, slope="POS", mode="AUTO",
     )
 
 

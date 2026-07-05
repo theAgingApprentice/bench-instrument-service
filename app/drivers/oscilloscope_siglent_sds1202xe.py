@@ -105,7 +105,10 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         self._validate_channel(channel)
         ch = f"C{channel}"
         if coupling is not None:
-            self.write(f"{ch}:CPL {coupling}")
+            _coupling_wire_values = {"DC": "DC1M", "AC": "AC1M", "GND": "GND"}
+            if coupling not in _coupling_wire_values:
+                raise ValueError(f"Invalid coupling {coupling!r} — must be DC, AC, or GND")
+            self.write(f"{ch}:CPL {_coupling_wire_values[coupling]}")
         if scale is not None:
             self.write(f"{ch}:VDIV {scale}V")
         if offset is not None:

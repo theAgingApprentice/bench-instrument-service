@@ -19,8 +19,10 @@ from unittest.mock import MagicMock, patch
 
 from bench_client import BenchClient
 from app.models.oscilloscope import (
+    ChannelConfigRequest,
     OscilloscopeCaptureRequest,
     OscilloscopeConfigureRequest,
+    TimebaseConfigRequest,
     TriggerConfigRequest,
 )
 from app.models.signal_generator import SignalGeneratorConfigureRequest
@@ -74,6 +76,14 @@ class TestOscilloscopeContract:
         ))
         _assert_body_matches_model(body, OscilloscopeConfigureRequest)
         _assert_body_matches_model(body["trigger"], TriggerConfigRequest)
+        _assert_body_matches_model(body["channel_config"], ChannelConfigRequest)
+
+    def test_configure_oscilloscope_timebase_matches_model(self):
+        body = _capture_body(lambda: CLIENT.configure_oscilloscope(
+            "tok", channel=1, timebase_scale=0.001, timebase_offset=0.0,
+        ))
+        _assert_body_matches_model(body, OscilloscopeConfigureRequest)
+        _assert_body_matches_model(body["timebase"], TimebaseConfigRequest)
 
 
 class TestSignalGeneratorContract:
