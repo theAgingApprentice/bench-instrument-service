@@ -30,14 +30,14 @@ def _parse_siglent_value(response: str) -> float:
 def _parse_coupling(response: str) -> str:
     """Extract coupling type from Siglent CPL response.
 
-    "C1:CPL DC1M" → "DC"
-    "C1:CPL AC1M" → "AC"
-    "C1:CPL GND"  → "GND"
+    "C1:CPL D1M" → "DC"
+    "C1:CPL A1M" → "AC"
+    "C1:CPL GND" → "GND"
     """
     token = response.strip().split()[-1]
-    if token.startswith("DC"):
+    if token.startswith("D"):
         return "DC"
-    if token.startswith("AC"):
+    if token.startswith("A"):
         return "AC"
     return "GND"
 
@@ -105,7 +105,7 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         self._validate_channel(channel)
         ch = f"C{channel}"
         if coupling is not None:
-            _coupling_wire_values = {"DC": "DC1M", "AC": "AC1M", "GND": "GND"}
+            _coupling_wire_values = {"DC": "D1M", "AC": "A1M", "GND": "GND"}
             if coupling not in _coupling_wire_values:
                 raise ValueError(f"Invalid coupling {coupling!r} — must be DC, AC, or GND")
             self.write(f"{ch}:CPL {_coupling_wire_values[coupling]}")
