@@ -319,13 +319,13 @@ class BenchClient:
     # Multimeter
     # ------------------------------------------------------------------
 
-    def measure(self, token: str, mode: str = "DCV", range_: str = "AUTO") -> dict:
+    def measure(self, token: str, mode: str = "VOLT:DC", range_: str = "AUTO") -> dict:
         """Take a single measurement.
 
         Args:
             token:  Session token.
-            mode:   Measurement mode: DCV, ACV, DCI, ACI, RES, FRES,
-                    FREQ, PER, DIOD, CONT, CAP.
+            mode:   Measurement mode: VOLT:DC, VOLT:AC, CURR:DC, CURR:AC, RES, FRES,
+                    FREQ, CONT, DIOD, CAP.
             range_: Measurement range or AUTO.
 
         Returns:

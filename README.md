@@ -135,8 +135,8 @@ with BenchClient(api_key="your-key") as bench:
     bench.set_psu_channel(token, channel=1, voltage_v=3.3, current_limit_a=0.5)
 
     # Multimeter
-    reading = bench.measure(token, mode="DCV")
-    log = bench.log_measurements(token, mode="DCV", duration_s=10, interval_s=1.0)
+    reading = bench.measure(token, mode="VOLT:DC")
+    log = bench.log_measurements(token, mode="VOLT:DC", duration_s=10, interval_s=1.0)
     print(f"Mean: {log['statistics']['mean']} {log['unit']}")
     print(f"CSV: {bench.get_log_csv_url(log['log_id'])}")
 ```
