@@ -206,8 +206,14 @@ class BenchClient:
             channel: Oscilloscope channel (1 or 2).
 
         Returns:
-            Dict with keys: channel, time_s (list), voltage_v (list),
-            sample_rate_hz, time_scale_s_div, voltage_scale_v_div.
+            Full capture envelope: {"timestamp": str,
+            "channel_1": <WaveformData dict> or None,
+            "channel_2": <WaveformData dict> or None}, matching
+            OscilloscopeCaptureResponse exactly. Only the requested
+            channel's key is populated -- the other is None.
+            WaveformData keys: enabled, sample_rate, timebase,
+            volts_per_div, offset, probe_ratio, num_points,
+            time_array (list), voltage_array (list).
         """
         return self._post(
             "/v1/oscilloscope/capture",
