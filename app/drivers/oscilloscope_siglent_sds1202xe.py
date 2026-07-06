@@ -142,9 +142,20 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
             self.write(f"TRMD {mode}")
 
     def capture_waveform(self, channel: int) -> dict:
-        """Capture waveform data from one channel and return scaled arrays."""
+        """Capture waveform data from one channel and return scaled arrays.
+
+        Stops acquisition before reading the waveform buffer and restores
+        the prior trigger mode afterward. Reading C1:WF?/C2:WF? while the
+        scope is actively acquiring (e.g. AUTO trigger free-run) can return
+        truncated or empty data for whichever channel's buffer is mid-swap
+        -- confirmed on real hardware 5 July 2026 while running
+        RC-Experiments against a live signal.
+        """
         self._validate_channel(channel)
         ch = f"C{channel}"
+
+        prior_trmd = self.query("TRMD?").strip().split()[-1].upper()
+        self.write("TRMD STOP")
 
         vdiv = _parse_siglent_value(self.query(f"{ch}:VDIV?"))
         ofst = _parse_siglent_value(self.query(f"{ch}:OFST?"))
@@ -167,6 +178,8 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
             for b in data
         ]
         time_array = [i * time_step - half_window for i in range(num_points)]
+
+        self.write(f"TRMD {prior_trmd}")
 
         return {
             "enabled": True,
