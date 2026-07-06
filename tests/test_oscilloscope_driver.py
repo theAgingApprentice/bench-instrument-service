@@ -96,6 +96,7 @@ class TestCaptureWaveformWireFormat:
         against the real SDS1202X-E). Only bare 'SARA?' is valid.
         """
         responses = {
+            "TRMD?": "TRMD AUTO",
             "C1:VDIV?": "C1:VDIV 500.00mV",
             "C1:OFST?": "C1:OFST 0.00V",
             "TDIV?": "TDIV 1.00ms",
@@ -110,3 +111,29 @@ class TestCaptureWaveformWireFormat:
         queried_commands = [call.args[0] for call in driver._resource.query.call_args_list]
         assert "SARA?" in queried_commands
         assert "C1:SARA?" not in queried_commands
+
+    def test_stops_and_restores_trigger_mode(self, driver):
+        """Reading the waveform buffer while the scope is actively
+        acquiring (e.g. AUTO free-run) can return truncated/empty data --
+        confirmed on real hardware 5 July 2026. capture_waveform() must
+        stop acquisition before reading and restore the prior mode after.
+        """
+        responses = {
+            "TRMD?": "TRMD AUTO",
+            "C1:VDIV?": "C1:VDIV 500.00mV",
+            "C1:OFST?": "C1:OFST 0.00V",
+            "TDIV?": "TDIV 1.00ms",
+            "C1:ATTN?": "C1:ATTN 10",
+            "SARA?": "SARA 1.00GSa/s",
+        }
+        driver._resource.query.side_effect = lambda cmd: responses[cmd]
+        driver._resource.read_raw.return_value = b"C1:WF DAT2,#14" + bytes([0, 1, 2, 3])
+
+        driver.capture_waveform(channel=1)
+
+        written_commands = [call.args[0] for call in driver._resource.write.call_args_list]
+        assert "TRMD STOP" in written_commands
+        assert "TRMD AUTO" in written_commands
+        stop_index = written_commands.index("TRMD STOP")
+        restore_index = written_commands.index("TRMD AUTO")
+        assert stop_index < restore_index
