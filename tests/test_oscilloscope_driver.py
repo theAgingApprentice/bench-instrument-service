@@ -105,6 +105,7 @@ class TestCaptureWaveformWireFormat:
             "TDIV?": "TDIV 1.00ms",
             "C1:ATTN?": "C1:ATTN 10",
             "SARA?": "SARA 1.00GSa/s",
+            "SAST?": "SAST Stop",
         }
         driver._resource.query.side_effect = lambda cmd: responses[cmd]
         driver._resource.read_raw.return_value = b"C1:WF DAT2,#14" + bytes([0, 1, 2, 3])
@@ -128,6 +129,7 @@ class TestCaptureWaveformWireFormat:
             "TDIV?": "TDIV 1.00ms",
             "C1:ATTN?": "C1:ATTN 10",
             "SARA?": "SARA 1.00GSa/s",
+            "SAST?": "SAST Stop",
         }
         driver._resource.query.side_effect = lambda cmd: responses[cmd]
         driver._resource.read_raw.return_value = b"C1:WF DAT2,#14" + bytes([0, 1, 2, 3])
@@ -208,6 +210,7 @@ class TestCaptureWaveformHandlesChunkedReads:
             "TDIV?": "TDIV 1.00ms",
             "C1:ATTN?": "C1:ATTN 10",
             "SARA?": "SARA 1.00GSa/s",
+            "SAST?": "SAST Stop",
         }
         driver._resource.query.side_effect = lambda cmd: responses[cmd]
 
