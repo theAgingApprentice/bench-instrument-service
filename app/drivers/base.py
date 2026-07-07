@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 import pyvisa
 
 from app.services.command_logger import command_logger
@@ -38,7 +39,15 @@ class BaseInstrumentDriver(ABC):
         """Send command and read response."""
         if not self._resource:
             raise RuntimeError("Not connected")
-        response = self._resource.query(command).strip()
+        raw_response = self._resource.query(command)
+        # TEMP DIAGNOSTIC — remove before merging real fix
+        import time as _t
+        logging.getLogger("bis.diag").info(
+            "DIAG raw query response instrument=%s command=%r raw=%r t=%.6f",
+            type(self).__name__, command, raw_response, _t.monotonic(),
+        )
+        # END TEMP DIAGNOSTIC
+        response = raw_response.strip()
         command_logger.log_query(type(self).__name__, self.ip, command, response)
         return response
 
