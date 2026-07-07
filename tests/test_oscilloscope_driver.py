@@ -217,9 +217,13 @@ class TestCaptureWaveformHandlesChunkedReads:
         payload = bytes(range(6))
         header = b"C1:WF DAT2,#16"  # n_digits=1, byte_count=6
         full = header + payload
-        driver._resource.read_raw.side_effect = [full[:6], full[6:10], full[10:]]
+        driver._resource.read_raw.side_effect = [
+            TimeoutError("no data"),  # consumed by the TEMP diagnostic at-start drain
+            full[:6], full[6:10], full[10:],
+            TimeoutError("no data"),  # consumed by the TEMP diagnostic after-TRMD-restore drain
+        ]
 
         result = driver.capture_waveform(channel=1)
 
         assert result["num_points"] == 6
-        assert driver._resource.read_raw.call_count == 3
+        assert driver._resource.read_raw.call_count == 5  # 3 real chunks + 2 TEMP diagnostic drain calls

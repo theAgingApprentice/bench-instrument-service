@@ -159,6 +159,32 @@ def _read_ieee_block(resource) -> bytes:
     return result
 
 
+# TEMP DIAGNOSTIC — remove before merging real fix
+def _drain_and_log(resource, label: str, channel: int, wait_s: float = 0.05) -> None:
+    """Briefly check for and log any unsolicited bytes sitting in the socket,
+    without blocking indefinitely. Temporarily shortens the VISA timeout to
+    do this, then restores it. Logs 'DIAG drain <label> channel=N found=False'
+    if nothing arrives, or the raw bytes found if something does.
+    """
+    import time as _t
+    original_timeout = resource.timeout
+    resource.timeout = int(wait_s * 1000)
+    try:
+        data = resource.read_raw()
+        _diag_logger.info(
+            "DIAG drain %s channel=%d found=True len=%d data=%r t=%.6f",
+            label, channel, len(data), data, _t.monotonic(),
+        )
+    except Exception as exc:
+        _diag_logger.info(
+            "DIAG drain %s channel=%d found=False (%s) t=%.6f",
+            label, channel, type(exc).__name__, _t.monotonic(),
+        )
+    finally:
+        resource.timeout = original_timeout
+# END TEMP DIAGNOSTIC
+
+
 class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
     """Driver for the Siglent SDS1202X-E two-channel oscilloscope.
 
@@ -248,6 +274,9 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         ch = f"C{channel}"
 
         # TEMP DIAGNOSTIC — remove before merging real fix
+        _drain_and_log(self._resource, "at-start", channel)
+        # END TEMP DIAGNOSTIC
+        # TEMP DIAGNOSTIC — remove before merging real fix
         _diag_logger.info(
             "DIAG pre-TRMD? channel=%d seq=%d t=%.6f", channel, next(_diag_counter), time.monotonic()
         )
@@ -304,6 +333,10 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         time_array = [i * time_step - half_window for i in range(num_points)]
 
         self.write(f"TRMD {prior_trmd}")
+
+        # TEMP DIAGNOSTIC — remove before merging real fix
+        _drain_and_log(self._resource, "after-TRMD-restore", channel)
+        # END TEMP DIAGNOSTIC
 
         return {
             "enabled": True,
