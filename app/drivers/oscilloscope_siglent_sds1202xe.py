@@ -66,6 +66,44 @@ def _strip_ieee_block_header(raw: bytes) -> bytes:
     return raw[data_start: data_start + byte_count]
 
 
+def _read_ieee_block(resource) -> bytes:
+    """Read a complete IEEE 488.2 definite-length binary block from a VISA resource.
+
+    A single read_raw() call is not guaranteed to return the entire block --
+    for multi-megabyte payloads (e.g. a scope waveform at deep memory depth),
+    some VISA/socket backends only return part of the declared byte count per
+    call. Confirmed against real hardware 6 July 2026: leftover unread bytes
+    from a channel 1 waveform transfer were still sitting in the socket
+    buffer and corrupted the next SCPI command sent to channel 2 (a TRMD?
+    query on channel 2 came back as 'C1:WF DAT2,#9000000000\nTRMD AUTO').
+
+    This loops read_raw() until the byte count declared in the block's own
+    header (#<n-digits><byte-count>) has actually been received, so nothing
+    is ever left behind in the connection for the next command to trip over.
+    """
+    buf = resource.read_raw()
+
+    hash_idx = buf.find(b"#")
+    while hash_idx == -1:
+        buf += resource.read_raw()
+        hash_idx = buf.find(b"#")
+
+    while len(buf) < hash_idx + 2:
+        buf += resource.read_raw()
+    n_digits = int(chr(buf[hash_idx + 1]))
+
+    header_end = hash_idx + 2 + n_digits
+    while len(buf) < header_end:
+        buf += resource.read_raw()
+    byte_count = int(buf[hash_idx + 2: header_end])
+
+    total_needed = header_end + byte_count
+    while len(buf) < total_needed:
+        buf += resource.read_raw()
+
+    return buf[:total_needed]
+
+
 class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
     """Driver for the Siglent SDS1202X-E two-channel oscilloscope.
 
@@ -164,8 +202,11 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         sara = _parse_siglent_value(self.query("SARA?"))
 
         # Request raw ADC data — response is IEEE 488.2 block preceded by echo.
+        # Loop-read until the full declared byte count is received (see
+        # _read_ieee_block docstring — a single read_raw() call can under-read
+        # a multi-megabyte block and corrupt the next command).
         self._resource.write(f"{ch}:WF? DAT2")
-        raw = self._resource.read_raw()
+        raw = _read_ieee_block(self._resource)
         data = _strip_ieee_block_header(raw)
 
         num_points = len(data)

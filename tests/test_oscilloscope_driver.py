@@ -10,7 +10,10 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
-from app.drivers.oscilloscope_siglent_sds1202xe import OscilloscopeSiglentSDS1202XE
+from app.drivers.oscilloscope_siglent_sds1202xe import (
+    OscilloscopeSiglentSDS1202XE,
+    _read_ieee_block,
+)
 
 
 @pytest.fixture
@@ -137,3 +140,83 @@ class TestCaptureWaveformWireFormat:
         stop_index = written_commands.index("TRMD STOP")
         restore_index = written_commands.index("TRMD AUTO")
         assert stop_index < restore_index
+
+
+class TestReadIeeeBlockChunking:
+    """Regression tests for the 6 July 2026 bug: a single read_raw() call
+    under-read a large binary waveform block, leaving bytes in the socket
+    that corrupted the next SCPI command (a channel 2 TRMD? query came back
+    as 'C1:WF DAT2,#9000000000\\nTRMD AUTO'). _read_ieee_block() must loop
+    read_raw() until the byte count declared in the block's own header has
+    actually been received.
+    """
+
+    def test_single_call_returns_full_block_unchanged(self):
+        resource = MagicMock()
+        header = b"C1:WF DAT2,#14"
+        data = bytes([10, 20, 30, 40])
+        resource.read_raw.return_value = header + data
+
+        result = _read_ieee_block(resource)
+
+        assert result == header + data
+        resource.read_raw.assert_called_once()
+
+    def test_loops_until_declared_byte_count_satisfied(self):
+        """Simulates a VISA backend that dribbles a large binary block out
+        over several read_raw() calls, with a chunk boundary falling in the
+        middle of the header itself.
+        """
+        resource = MagicMock()
+        payload = bytes(range(10))
+        header = b"C1:WF DAT2,#210"  # n_digits=2, byte_count=10
+        full = header + payload
+        chunks = [full[:5], full[5:9], full[9:15], full[15:]]
+        resource.read_raw.side_effect = chunks
+
+        result = _read_ieee_block(resource)
+
+        assert result == full
+        assert resource.read_raw.call_count == len(chunks)
+
+    def test_returns_exactly_declared_length_no_trailing_bytes(self):
+        """If a read_raw() call happens to also grab bytes belonging to the
+        next command's echo, the function must slice to exactly byte_count
+        so nothing extra is mistaken for waveform data.
+        """
+        resource = MagicMock()
+        header = b"C1:WF DAT2,#13"
+        data = bytes([1, 2, 3])
+        extra = b"\nTRMD AUTO"
+        resource.read_raw.side_effect = [header + data + extra]
+
+        result = _read_ieee_block(resource)
+
+        assert result == header + data
+
+
+class TestCaptureWaveformHandlesChunkedReads:
+    def test_capture_waveform_reassembles_multi_chunk_binary_block(self, driver):
+        """End-to-end regression test: capture_waveform() must still produce
+        the correct waveform even when read_raw() only returns the block in
+        pieces -- the exact real-world failure mode from 6 July 2026.
+        """
+        responses = {
+            "TRMD?": "TRMD AUTO",
+            "C1:VDIV?": "C1:VDIV 500.00mV",
+            "C1:OFST?": "C1:OFST 0.00V",
+            "TDIV?": "TDIV 1.00ms",
+            "C1:ATTN?": "C1:ATTN 10",
+            "SARA?": "SARA 1.00GSa/s",
+        }
+        driver._resource.query.side_effect = lambda cmd: responses[cmd]
+
+        payload = bytes(range(6))
+        header = b"C1:WF DAT2,#16"  # n_digits=1, byte_count=6
+        full = header + payload
+        driver._resource.read_raw.side_effect = [full[:6], full[6:10], full[10:]]
+
+        result = driver.capture_waveform(channel=1)
+
+        assert result["num_points"] == 6
+        assert driver._resource.read_raw.call_count == 3
