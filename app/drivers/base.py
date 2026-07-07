@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
+import threading
 import pyvisa
 
 from app.services.command_logger import command_logger
@@ -14,6 +15,7 @@ class BaseInstrumentDriver(ABC):
         self.timeout_ms = timeout_ms
         self._rm = pyvisa.ResourceManager('@py')
         self._resource = None
+        self._lock = threading.Lock()
 
     def connect(self) -> bool:
         """Open VISA connection. Returns True if successful."""

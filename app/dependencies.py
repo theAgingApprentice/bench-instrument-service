@@ -60,24 +60,30 @@ def instrument_session(registry: InstrumentRegistry, name: str):
     entry = registry.get_entry(name)
     ip = entry.ip if entry else "unknown"
 
-    try:
-        connected = driver.connect()
-        if not connected:
-            raise HTTPException(
-                status_code=503,
-                detail="Instrument unavailable — check power and network",
-            )
-        yield driver
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("Instrument connection error for '%s': %s", name, exc, exc_info=True)
-        raise HTTPException(status_code=503, detail="Instrument unavailable") from exc
-    finally:
+    # Hold driver._lock for the whole connect/operate/disconnect span so the
+    # background discover() health-check poll (main.py's 30s task, running on
+    # the asyncio event loop thread) can't reconnect this instrument out from
+    # under a request handler mid-operation (FastAPI sync-route thread pool).
+    # Discovered via live diagnostic logging 7 July 2026 — see roadmap §4.7.
+    with driver._lock:
         try:
-            driver.disconnect()
-        except Exception:
-            pass
+            connected = driver.connect()
+            if not connected:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Instrument unavailable — check power and network",
+                )
+            yield driver
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("Instrument connection error for '%s': %s", name, exc, exc_info=True)
+            raise HTTPException(status_code=503, detail="Instrument unavailable") from exc
+        finally:
+            try:
+                driver.disconnect()
+            except Exception:
+                pass
 
 
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
