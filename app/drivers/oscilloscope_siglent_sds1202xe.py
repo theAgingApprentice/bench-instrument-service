@@ -94,7 +94,7 @@ def _read_ieee_block(resource) -> bytes:
     n = 1
     buf = resource.read_raw()
     _diag_logger.info(
-        "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(buf), len(buf), time.monotonic()
+        "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(buf), len(buf), buf, time.monotonic()
     )
     # END TEMP DIAGNOSTIC
 
@@ -105,7 +105,7 @@ def _read_ieee_block(resource) -> bytes:
         chunk = resource.read_raw()
         buf += chunk
         _diag_logger.info(
-            "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(chunk), len(buf), time.monotonic()
+            "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(chunk), len(buf), chunk, time.monotonic()
         )
         # END TEMP DIAGNOSTIC
         hash_idx = buf.find(b"#")
@@ -116,12 +116,15 @@ def _read_ieee_block(resource) -> bytes:
         chunk = resource.read_raw()
         buf += chunk
         _diag_logger.info(
-            "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(chunk), len(buf), time.monotonic()
+            "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(chunk), len(buf), chunk, time.monotonic()
         )
         # END TEMP DIAGNOSTIC
     n_digits = int(chr(buf[hash_idx + 1]))
     # TEMP DIAGNOSTIC — remove before merging real fix
-    _diag_logger.info("DIAG n_digits=%d t=%.6f", n_digits, time.monotonic())
+    _diag_logger.info(
+        "DIAG n_digits=%d raw_digit=%r t=%.6f",
+        n_digits, buf[hash_idx + 1:hash_idx + 2], time.monotonic(),
+    )
     # END TEMP DIAGNOSTIC
 
     header_end = hash_idx + 2 + n_digits
@@ -131,12 +134,15 @@ def _read_ieee_block(resource) -> bytes:
         chunk = resource.read_raw()
         buf += chunk
         _diag_logger.info(
-            "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(chunk), len(buf), time.monotonic()
+            "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(chunk), len(buf), chunk, time.monotonic()
         )
         # END TEMP DIAGNOSTIC
     byte_count = int(buf[hash_idx + 2: header_end])
     # TEMP DIAGNOSTIC — remove before merging real fix
-    _diag_logger.info("DIAG byte_count=%d t=%.6f", byte_count, time.monotonic())
+    _diag_logger.info(
+        "DIAG byte_count=%d raw_count_field=%r t=%.6f",
+        byte_count, buf[hash_idx + 2:header_end], time.monotonic(),
+    )
     # END TEMP DIAGNOSTIC
 
     total_needed = header_end + byte_count
@@ -146,7 +152,7 @@ def _read_ieee_block(resource) -> bytes:
         chunk = resource.read_raw()
         buf += chunk
         _diag_logger.info(
-            "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(chunk), len(buf), time.monotonic()
+            "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(chunk), len(buf), chunk, time.monotonic()
         )
         # END TEMP DIAGNOSTIC
 
@@ -160,7 +166,7 @@ def _read_ieee_block(resource) -> bytes:
 
 
 # TEMP DIAGNOSTIC — remove before merging real fix
-def _drain_and_log(resource, label: str, channel: int, wait_s: float = 0.05) -> None:
+def _drain_and_log(resource, label: str, channel: int, wait_s: float = 0.5) -> None:
     """Briefly check for and log any unsolicited bytes sitting in the socket,
     without blocking indefinitely. Temporarily shortens the VISA timeout to
     do this, then restores it. Logs 'DIAG drain <label> channel=N found=False'
@@ -294,7 +300,7 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
             )
             if "Stop" in _sast_resp:
                 break
-            time.sleep(0.01)
+            time.sleep(0.1)
         else:
             _diag_logger.info(
                 "DIAG SAST poll channel=%d NEVER SAW STOP after %d iters elapsed=%.6f",
