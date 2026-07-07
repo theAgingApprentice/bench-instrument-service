@@ -221,6 +221,37 @@ class BenchClient:
             token=token,
         )
 
+    def capture_waveforms(
+        self,
+        token: str,
+        channels: list[int],
+    ) -> dict:
+        """Capture waveforms from multiple oscilloscope channels in one request.
+
+        Unlike calling capture_waveform() once per channel, this issues a
+        single POST to /v1/oscilloscope/capture, so the server only opens
+        and closes one instrument connection for the whole capture instead
+        of one per channel (see the shared instrument_session() context
+        manager in app/dependencies.py -- one connect/disconnect cycle
+        wraps the entire request, capturing all requested channels inside
+        it, rather than one cycle per channel).
+
+        Args:
+            token:    Session token.
+            channels: Oscilloscope channels to capture, e.g. [1, 2].
+
+        Returns:
+            Same envelope shape as capture_waveform(): {"timestamp": str,
+            "channel_1": <WaveformData dict> or None,
+            "channel_2": <WaveformData dict> or None}. Both keys are
+            populated if both channels were requested.
+        """
+        return self._post(
+            "/v1/oscilloscope/capture",
+            body={"channels": channels},
+            token=token,
+        )
+
     def configure_oscilloscope(
         self,
         token: str,

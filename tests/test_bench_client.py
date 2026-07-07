@@ -147,6 +147,25 @@ class TestOscilloscope:
             result = CLIENT.capture_waveform("tok")
         assert isinstance(result, dict)
 
+    def test_capture_waveforms_posts_correct_body(self):
+        """capture_waveforms() must request all channels in a single POST,
+        so the server opens/closes one instrument connection for the whole
+        capture instead of one per channel (see instrument_session() in
+        app/dependencies.py).
+        """
+        payload = {"channel_1": {}, "channel_2": {}}
+        with _mock_urlopen(payload) as mock_open:
+            CLIENT.capture_waveforms("tok", channels=[1, 2])
+        req = mock_open.call_args[0][0]
+        body = json.loads(req.data)
+        assert body["channels"] == [1, 2]
+
+    def test_capture_waveforms_returns_dict(self):
+        payload = {"channel_1": {}, "channel_2": {}}
+        with _mock_urlopen(payload):
+            result = CLIENT.capture_waveforms("tok", channels=[1, 2])
+        assert isinstance(result, dict)
+
 
 # ---------------------------------------------------------------------------
 # Signal generator
