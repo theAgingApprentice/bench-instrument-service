@@ -119,15 +119,21 @@ def _build_drivers(settings) -> dict:
 
 def _probe(driver) -> tuple[bool, Optional[str]]:
     """Open a connection, query *IDN?, close. Returns (reachable, identity)."""
-    try:
-        if driver.connect():
-            identity = driver.identify().strip()
-            return True, identity
-    except Exception as exc:
-        logger.debug("Probe failed for %s: %s", type(driver).__name__, exc)
-    finally:
+    # Hold driver._lock for the whole connect/identify/disconnect span so this
+    # background health-check poll (runs on the asyncio event loop thread via
+    # main.py's 30s discover() task) can't disconnect/reconnect an instrument
+    # while a request handler (FastAPI sync-route thread pool) is mid-operation
+    # on it. Discovered via live diagnostic logging 7 July 2026 — see roadmap §4.7.
+    with driver._lock:
         try:
-            driver.disconnect()
-        except Exception:
-            pass
+            if driver.connect():
+                identity = driver.identify().strip()
+                return True, identity
+        except Exception as exc:
+            logger.debug("Probe failed for %s: %s", type(driver).__name__, exc)
+        finally:
+            try:
+                driver.disconnect()
+            except Exception:
+                pass
     return False, None
