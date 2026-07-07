@@ -232,3 +232,35 @@ time since they never touched the wire format. See PR #25/#26.
 
 New drivers or new SCPI-emitting methods should get an equivalent
 driver-level test file alongside their router-level test.
+
+### Binary waveform reads and IEEE block chunking
+
+`capture_waveform()` reads the oscilloscope's binary waveform block over the
+same VISA connection used for SCPI text commands. The response is an IEEE
+488.2 definite-length block (`#<n-digits><byte-count><data>`), which for a
+deep-memory acquisition (e.g. 7,000,000 points) can be several megabytes.
+
+A single `read_raw()` call is not guaranteed to return the entire block —
+some VISA/socket backends only return part of the declared byte count per
+call. A real bug shipped in July 2026 where `capture_waveform()` called
+`read_raw()` exactly once and used whatever came back without checking it
+against the block's own declared byte count. On a large capture this left
+unread bytes sitting in the socket buffer, which then corrupted the *next*
+SCPI command sent over that connection — confirmed on real hardware when a
+channel 2 `TRMD?` query came back containing leftover channel 1 waveform
+bytes. See PR #31.
+
+The fix, `_read_ieee_block()` in `oscilloscope_siglent_sds1202xe.py`, loops
+`read_raw()` until the byte count declared in the block's header has
+actually been received, then returns exactly that many bytes (discarding
+any trailing bytes from an over-read). `test_oscilloscope_driver.py` covers
+this with both a direct unit test of `_read_ieee_block()` (multi-chunk
+reassembly, including a chunk boundary falling mid-header) and an
+end-to-end `capture_waveform()` test using a chunked mock.
+
+This same class of bug — reading a large binary payload without verifying
+it against a declared length — could exist anywhere else a driver reads
+raw binary data over VISA. None of the other three drivers (multimeter,
+power supply, signal generator) currently transfer large binary payloads,
+so this is not believed to apply to them today, but it's worth checking
+if any of them grow that capability.
