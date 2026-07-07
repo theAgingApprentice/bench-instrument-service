@@ -145,6 +145,17 @@ with BenchClient(api_key="your-key") as bench:
 
 ---
 
+## Reliability Notes
+
+Two hardening measures protect against known Siglent LXI/SCPI quirks:
+
+- **Large block transfers**: `chunk_size=500000` and `timeout>=10000ms` are set explicitly in `base.py` to handle Siglent's documented behavior of reporting a placeholder `byte_count=0` header on large waveform transfers before the real payload is ready. See [`docs/scpi-block-transfer-protocol.md`](docs/scpi-block-transfer-protocol.md) for the full failure mode this prevents and how it was diagnosed.
+- **Transient query timeouts**: `BaseInstrumentDriver.query()` retries up to 2 additional times (1 second apart) on a VISA timeout before raising. This covers a rare (~6-7% observed) single-query hiccup separate from the block-transfer issue above.
+
+For diagnosing similar instrument-communication issues in the future, [`examples/raw_scope_test.py`](examples/raw_scope_test.py) is a standalone, BIS-independent reference script — see [`examples/README.md`](examples/README.md) for usage.
+
+---
+
 ## Deployment
 
 The service runs on the MitchellNET Ubuntu server at `192.168.2.10` and is accessible at `https://mitchellnet.local/api/bench/` via the NGINX reverse proxy in InternalWebServer.
@@ -196,7 +207,7 @@ bench-instrument-service/
 │   │   └── webhooks.py          # POST/GET/DELETE /v1/webhooks
 │   │
 │   ├── drivers/
-│   │   ├── base.py              # Abstract base class all drivers inherit from
+│   │   ├── base.py              # Abstract base class all drivers inherit from — query() includes retry-with-backoff for transient VISA timeouts
 │   │   ├── oscilloscope_siglent_sds1202xe.py
 │   │   ├── signal_generator_siglent_sdg2042x.py
 │   │   ├── multimeter_siglent_sdm3055.py
@@ -230,6 +241,7 @@ bench-instrument-service/
 │   ├── test_health.py
 │   ├── test_oscilloscope.py
 │   ├── test_oscilloscope_driver.py     # Driver-level: asserts literal SCPI strings sent to write()
+│   ├── test_base_driver.py             # Query retry-with-backoff behavior on transient VISA timeouts
 │   ├── test_signal_generator.py
 │   ├── test_multimeter.py
 │   ├── test_power_supply.py
@@ -237,7 +249,15 @@ bench-instrument-service/
 │   └── test_webhooks.py
 │
 ├── docs/
-│   └── BIS_Implementation_Blueprint.md
+│   ├── ARCHITECTURE.md              # System architecture — components, data flow, design decisions
+│   ├── BIS_BRD.docx                 # Business Requirements Document
+│   ├── BIS_HLA.docx                 # High-Level Architecture document
+│   ├── BIS_Implementation_Blueprint.md
+│   └── scpi-block-transfer-protocol.md   # IEEE-488.2 block transfer format, chunk_size/timeout rationale, query retry behavior
+│
+├── examples/
+│   ├── raw_scope_test.py   # Standalone pyvisa-only diagnostic — no BIS dependency. Ground-truth tool for isolating whether a bug is in BIS's abstraction layer or raw instrument communication.
+│   └── README.md           # How to run raw_scope_test.py
 │
 ├── bench_client.py              # Zero-dependency Python client library
 ├── Dockerfile
@@ -259,3 +279,4 @@ bench-instrument-service/
 | 1 | Core service — all four instruments, full API, Docker deploy, CI/CD | Complete | 4 June 2026 |
 | 2 | Session management — exclusive instrument reservation, session timeout | Complete | 8 June 2026 |
 | 3 | Enhancements — status dashboard, bench_client.py, webhook support | Complete | 15 June 2026 |
+| 4 | Reliability hardening — large block transfer fix (chunk_size/timeout), query retry-with-backoff, diagnostic tooling | Complete | 7 July 2026 |

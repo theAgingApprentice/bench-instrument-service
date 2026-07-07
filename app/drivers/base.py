@@ -1,8 +1,19 @@
 from abc import ABC, abstractmethod
+import logging
 import threading
+import time
 import pyvisa
 
 from app.services.command_logger import command_logger
+
+logger = logging.getLogger(__name__)
+
+# query() retries transient VISA timeouts this many times (beyond the
+# original attempt) before giving up. See docs/scpi-block-transfer-protocol.md
+# for why Siglent queries can time out transiently even after the
+# chunk_size/timeout fix below.
+_QUERY_RETRY_ATTEMPTS = 2
+_QUERY_RETRY_DELAY_S = 1
 
 
 class BaseInstrumentDriver(ABC):
@@ -41,10 +52,30 @@ class BaseInstrumentDriver(ABC):
             self._resource = None
 
     def query(self, command: str) -> str:
-        """Send command and read response."""
+        """Send command and read response.
+
+        Retries up to _QUERY_RETRY_ATTEMPTS additional times, with a
+        _QUERY_RETRY_DELAY_S second pause between attempts, if the underlying
+        query times out (pyvisa.errors.VisaIOError, error_timeout). Re-raises
+        if every attempt times out.
+        """
         if not self._resource:
             raise RuntimeError("Not connected")
-        raw_response = self._resource.query(command)
+        attempt = 0
+        while True:
+            try:
+                raw_response = self._resource.query(command)
+                break
+            except pyvisa.errors.VisaIOError as exc:
+                is_timeout = exc.error_code == pyvisa.constants.StatusCode.error_timeout
+                if not is_timeout or attempt >= _QUERY_RETRY_ATTEMPTS:
+                    raise
+                attempt += 1
+                logger.warning(
+                    "Query timed out, retrying (attempt %d/%d): command=%r",
+                    attempt, _QUERY_RETRY_ATTEMPTS, command,
+                )
+                time.sleep(_QUERY_RETRY_DELAY_S)
         response = raw_response.strip()
         command_logger.log_query(type(self).__name__, self.ip, command, response)
         return response
