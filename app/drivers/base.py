@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import logging
 import threading
 import pyvisa
 
@@ -22,7 +21,11 @@ class BaseInstrumentDriver(ABC):
         try:
             resource_string = self._resource_string()
             self._resource = self._rm.open_resource(resource_string)
-            self._resource.timeout = self.timeout_ms
+            # Siglent programming guide: 500k+ recommended chunk size for
+            # WF?/PNSU? block transfers, and a timeout floor of 10s for the
+            # same large-block reads.
+            self._resource.chunk_size = 500000
+            self._resource.timeout = max(self.timeout_ms, 10000)
             return True
         except Exception:
             self._resource = None
@@ -42,13 +45,6 @@ class BaseInstrumentDriver(ABC):
         if not self._resource:
             raise RuntimeError("Not connected")
         raw_response = self._resource.query(command)
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        import time as _t
-        logging.getLogger("bis.diag").info(
-            "DIAG raw query response instrument=%s command=%r raw=%r t=%.6f",
-            type(self).__name__, command, raw_response, _t.monotonic(),
-        )
-        # END TEMP DIAGNOSTIC
         response = raw_response.strip()
         command_logger.log_query(type(self).__name__, self.ip, command, response)
         return response

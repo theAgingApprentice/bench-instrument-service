@@ -20,9 +20,6 @@ Usage in middleware / dependencies:
 
 import contextvars
 import logging
-# TEMP DIAGNOSTIC — remove before merging real fix
-import time
-# END TEMP DIAGNOSTIC
 
 _scpi_logger = logging.getLogger("bis.scpi")
 
@@ -44,20 +41,10 @@ class CommandLogger:
 
     def log_query(self, instrument: str, ip: str, command: str, response: str) -> None:
         """Record a query command and its response."""
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        _diag_ctx_client = _client_ip_var.get()
-        _diag_t = time.monotonic()
-        # END TEMP DIAGNOSTIC
         _scpi_logger.info(
             "QUERY instrument=%s ip=%s client=%s command=%r response=%r",
             instrument, ip, _client_ip_var.get(), command, response,
         )
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        _scpi_logger.info(
-            "DIAG log_query t=%.6f ctx_client=%s",
-            _diag_t, _diag_ctx_client,
-        )
-        # END TEMP DIAGNOSTIC
 
     # ------------------------------------------------------------------
     # Client context management

@@ -2,15 +2,6 @@ import re
 
 from app.drivers.base import BaseInstrumentDriver
 
-# TEMP DIAGNOSTIC — remove before merging real fix
-import logging
-import time
-import itertools
-
-_diag_logger = logging.getLogger("bis.diag")
-_diag_counter = itertools.count(1)
-# END TEMP DIAGNOSTIC
-
 _CHANNELS = (1, 2)
 
 # Siglent SI-prefix multipliers used in SCPI response strings.
@@ -90,105 +81,27 @@ def _read_ieee_block(resource) -> bytes:
     header (#<n-digits><byte-count>) has actually been received, so nothing
     is ever left behind in the connection for the next command to trip over.
     """
-    # TEMP DIAGNOSTIC — remove before merging real fix
-    n = 1
     buf = resource.read_raw()
-    _diag_logger.info(
-        "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(buf), len(buf), buf, time.monotonic()
-    )
-    # END TEMP DIAGNOSTIC
 
     hash_idx = buf.find(b"#")
     while hash_idx == -1:
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        n += 1
-        chunk = resource.read_raw()
-        buf += chunk
-        _diag_logger.info(
-            "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(chunk), len(buf), chunk, time.monotonic()
-        )
-        # END TEMP DIAGNOSTIC
+        buf += resource.read_raw()
         hash_idx = buf.find(b"#")
 
     while len(buf) < hash_idx + 2:
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        n += 1
-        chunk = resource.read_raw()
-        buf += chunk
-        _diag_logger.info(
-            "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(chunk), len(buf), chunk, time.monotonic()
-        )
-        # END TEMP DIAGNOSTIC
+        buf += resource.read_raw()
     n_digits = int(chr(buf[hash_idx + 1]))
-    # TEMP DIAGNOSTIC — remove before merging real fix
-    _diag_logger.info(
-        "DIAG n_digits=%d raw_digit=%r t=%.6f",
-        n_digits, buf[hash_idx + 1:hash_idx + 2], time.monotonic(),
-    )
-    # END TEMP DIAGNOSTIC
 
     header_end = hash_idx + 2 + n_digits
     while len(buf) < header_end:
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        n += 1
-        chunk = resource.read_raw()
-        buf += chunk
-        _diag_logger.info(
-            "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(chunk), len(buf), chunk, time.monotonic()
-        )
-        # END TEMP DIAGNOSTIC
+        buf += resource.read_raw()
     byte_count = int(buf[hash_idx + 2: header_end])
-    # TEMP DIAGNOSTIC — remove before merging real fix
-    _diag_logger.info(
-        "DIAG byte_count=%d raw_count_field=%r t=%.6f",
-        byte_count, buf[hash_idx + 2:header_end], time.monotonic(),
-    )
-    # END TEMP DIAGNOSTIC
 
     total_needed = header_end + byte_count
     while len(buf) < total_needed:
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        n += 1
-        chunk = resource.read_raw()
-        buf += chunk
-        _diag_logger.info(
-            "DIAG read_raw #%d len=%d total=%d chunk=%r t=%.6f", n, len(chunk), len(buf), chunk, time.monotonic()
-        )
-        # END TEMP DIAGNOSTIC
+        buf += resource.read_raw()
 
-    result = buf[:total_needed]
-    # TEMP DIAGNOSTIC — remove before merging real fix
-    _diag_logger.info(
-        "DIAG returning len=%d total_needed=%d t=%.6f", len(result), total_needed, time.monotonic()
-    )
-    # END TEMP DIAGNOSTIC
-    return result
-
-
-# TEMP DIAGNOSTIC — remove before merging real fix
-def _drain_and_log(resource, label: str, channel: int, wait_s: float = 0.5) -> None:
-    """Briefly check for and log any unsolicited bytes sitting in the socket,
-    without blocking indefinitely. Temporarily shortens the VISA timeout to
-    do this, then restores it. Logs 'DIAG drain <label> channel=N found=False'
-    if nothing arrives, or the raw bytes found if something does.
-    """
-    import time as _t
-    original_timeout = resource.timeout
-    resource.timeout = int(wait_s * 1000)
-    try:
-        data = resource.read_raw()
-        _diag_logger.info(
-            "DIAG drain %s channel=%d found=True len=%d data=%r t=%.6f",
-            label, channel, len(data), data, _t.monotonic(),
-        )
-    except Exception as exc:
-        _diag_logger.info(
-            "DIAG drain %s channel=%d found=False (%s) t=%.6f",
-            label, channel, type(exc).__name__, _t.monotonic(),
-        )
-    finally:
-        resource.timeout = original_timeout
-# END TEMP DIAGNOSTIC
+    return buf[:total_needed]
 
 
 class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
@@ -279,34 +192,8 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         self._validate_channel(channel)
         ch = f"C{channel}"
 
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        _drain_and_log(self._resource, "at-start", channel)
-        # END TEMP DIAGNOSTIC
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        _diag_logger.info(
-            "DIAG pre-TRMD? channel=%d seq=%d t=%.6f", channel, next(_diag_counter), time.monotonic()
-        )
-        # END TEMP DIAGNOSTIC
         prior_trmd = self.query("TRMD?").strip().split()[-1].upper()
         self.write("TRMD STOP")
-
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        _sast_start = time.monotonic()
-        for _sast_i in range(1, 21):
-            _sast_resp = self.query("SAST?")
-            _diag_logger.info(
-                "DIAG SAST poll channel=%d iter=%d resp=%r elapsed=%.6f t=%.6f",
-                channel, _sast_i, _sast_resp, time.monotonic() - _sast_start, time.monotonic(),
-            )
-            if "Stop" in _sast_resp:
-                break
-            time.sleep(0.1)
-        else:
-            _diag_logger.info(
-                "DIAG SAST poll channel=%d NEVER SAW STOP after %d iters elapsed=%.6f",
-                channel, _sast_i, time.monotonic() - _sast_start,
-            )
-        # END TEMP DIAGNOSTIC
 
         vdiv = _parse_siglent_value(self.query(f"{ch}:VDIV?"))
         ofst = _parse_siglent_value(self.query(f"{ch}:OFST?"))
@@ -320,11 +207,6 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         # a multi-megabyte block and corrupt the next command).
         self._resource.write(f"{ch}:WF? DAT2")
         raw = _read_ieee_block(self._resource)
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        _diag_logger.info(
-            "DIAG post-_read_ieee_block channel=%d seq=%d t=%.6f", channel, next(_diag_counter), time.monotonic()
-        )
-        # END TEMP DIAGNOSTIC
         data = _strip_ieee_block_header(raw)
 
         num_points = len(data)
@@ -339,10 +221,6 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         time_array = [i * time_step - half_window for i in range(num_points)]
 
         self.write(f"TRMD {prior_trmd}")
-
-        # TEMP DIAGNOSTIC — remove before merging real fix
-        _drain_and_log(self._resource, "after-TRMD-restore", channel)
-        # END TEMP DIAGNOSTIC
 
         return {
             "enabled": True,
