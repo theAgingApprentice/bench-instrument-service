@@ -255,6 +255,24 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         prior_trmd = self.query("TRMD?").strip().split()[-1].upper()
         self.write("TRMD STOP")
 
+        # TEMP DIAGNOSTIC — remove before merging real fix
+        _sast_start = time.monotonic()
+        for _sast_i in range(1, 21):
+            _sast_resp = self.query("SAST?")
+            _diag_logger.info(
+                "DIAG SAST poll channel=%d iter=%d resp=%r elapsed=%.6f t=%.6f",
+                channel, _sast_i, _sast_resp, time.monotonic() - _sast_start, time.monotonic(),
+            )
+            if "Stop" in _sast_resp:
+                break
+            time.sleep(0.01)
+        else:
+            _diag_logger.info(
+                "DIAG SAST poll channel=%d NEVER SAW STOP after %d iters elapsed=%.6f",
+                channel, _sast_i, time.monotonic() - _sast_start,
+            )
+        # END TEMP DIAGNOSTIC
+
         vdiv = _parse_siglent_value(self.query(f"{ch}:VDIV?"))
         ofst = _parse_siglent_value(self.query(f"{ch}:OFST?"))
         tdiv = _parse_siglent_value(self.query("TDIV?"))
