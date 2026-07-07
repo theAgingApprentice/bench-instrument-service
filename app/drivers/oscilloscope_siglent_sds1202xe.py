@@ -2,6 +2,15 @@ import re
 
 from app.drivers.base import BaseInstrumentDriver
 
+# TEMP DIAGNOSTIC — remove before merging real fix
+import logging
+import time
+import itertools
+
+_diag_logger = logging.getLogger("bis.diag")
+_diag_counter = itertools.count(1)
+# END TEMP DIAGNOSTIC
+
 _CHANNELS = (1, 2)
 
 # Siglent SI-prefix multipliers used in SCPI response strings.
@@ -81,27 +90,73 @@ def _read_ieee_block(resource) -> bytes:
     header (#<n-digits><byte-count>) has actually been received, so nothing
     is ever left behind in the connection for the next command to trip over.
     """
+    # TEMP DIAGNOSTIC — remove before merging real fix
+    n = 1
     buf = resource.read_raw()
+    _diag_logger.info(
+        "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(buf), len(buf), time.monotonic()
+    )
+    # END TEMP DIAGNOSTIC
 
     hash_idx = buf.find(b"#")
     while hash_idx == -1:
-        buf += resource.read_raw()
+        # TEMP DIAGNOSTIC — remove before merging real fix
+        n += 1
+        chunk = resource.read_raw()
+        buf += chunk
+        _diag_logger.info(
+            "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(chunk), len(buf), time.monotonic()
+        )
+        # END TEMP DIAGNOSTIC
         hash_idx = buf.find(b"#")
 
     while len(buf) < hash_idx + 2:
-        buf += resource.read_raw()
+        # TEMP DIAGNOSTIC — remove before merging real fix
+        n += 1
+        chunk = resource.read_raw()
+        buf += chunk
+        _diag_logger.info(
+            "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(chunk), len(buf), time.monotonic()
+        )
+        # END TEMP DIAGNOSTIC
     n_digits = int(chr(buf[hash_idx + 1]))
+    # TEMP DIAGNOSTIC — remove before merging real fix
+    _diag_logger.info("DIAG n_digits=%d t=%.6f", n_digits, time.monotonic())
+    # END TEMP DIAGNOSTIC
 
     header_end = hash_idx + 2 + n_digits
     while len(buf) < header_end:
-        buf += resource.read_raw()
+        # TEMP DIAGNOSTIC — remove before merging real fix
+        n += 1
+        chunk = resource.read_raw()
+        buf += chunk
+        _diag_logger.info(
+            "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(chunk), len(buf), time.monotonic()
+        )
+        # END TEMP DIAGNOSTIC
     byte_count = int(buf[hash_idx + 2: header_end])
+    # TEMP DIAGNOSTIC — remove before merging real fix
+    _diag_logger.info("DIAG byte_count=%d t=%.6f", byte_count, time.monotonic())
+    # END TEMP DIAGNOSTIC
 
     total_needed = header_end + byte_count
     while len(buf) < total_needed:
-        buf += resource.read_raw()
+        # TEMP DIAGNOSTIC — remove before merging real fix
+        n += 1
+        chunk = resource.read_raw()
+        buf += chunk
+        _diag_logger.info(
+            "DIAG read_raw #%d len=%d total=%d t=%.6f", n, len(chunk), len(buf), time.monotonic()
+        )
+        # END TEMP DIAGNOSTIC
 
-    return buf[:total_needed]
+    result = buf[:total_needed]
+    # TEMP DIAGNOSTIC — remove before merging real fix
+    _diag_logger.info(
+        "DIAG returning len=%d total_needed=%d t=%.6f", len(result), total_needed, time.monotonic()
+    )
+    # END TEMP DIAGNOSTIC
+    return result
 
 
 class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
@@ -192,6 +247,11 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         self._validate_channel(channel)
         ch = f"C{channel}"
 
+        # TEMP DIAGNOSTIC — remove before merging real fix
+        _diag_logger.info(
+            "DIAG pre-TRMD? channel=%d seq=%d t=%.6f", channel, next(_diag_counter), time.monotonic()
+        )
+        # END TEMP DIAGNOSTIC
         prior_trmd = self.query("TRMD?").strip().split()[-1].upper()
         self.write("TRMD STOP")
 
@@ -207,6 +267,11 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         # a multi-megabyte block and corrupt the next command).
         self._resource.write(f"{ch}:WF? DAT2")
         raw = _read_ieee_block(self._resource)
+        # TEMP DIAGNOSTIC — remove before merging real fix
+        _diag_logger.info(
+            "DIAG post-_read_ieee_block channel=%d seq=%d t=%.6f", channel, next(_diag_counter), time.monotonic()
+        )
+        # END TEMP DIAGNOSTIC
         data = _strip_ieee_block_header(raw)
 
         num_points = len(data)
