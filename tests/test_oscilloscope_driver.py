@@ -142,6 +142,69 @@ class TestCaptureWaveformWireFormat:
         assert stop_index < restore_index
 
 
+class TestCaptureWaveformsMultiChannel:
+    def test_two_channel_capture_stops_and_restores_exactly_once(self, driver):
+        """A dual-channel /capture request must use a single stop/read-both/
+        restore cycle, not one cycle per channel. Restoring TRMD between
+        channel reads lets the scope resume free-running acquisition and
+        then get stopped again before a full sweep completes -- confirmed on
+        real hardware 7 July 2026, where channel 1 returned 7,000,000 points
+        and channel 2 returned num_points=0 in the same request. capture_waveforms()
+        must write "TRMD STOP" and the TRMD restore exactly once each, no
+        matter how many channels are requested.
+        """
+        responses = {
+            "TRMD?": "TRMD AUTO",
+            "C1:VDIV?": "C1:VDIV 500.00mV",
+            "C1:OFST?": "C1:OFST 0.00V",
+            "C2:VDIV?": "C2:VDIV 500.00mV",
+            "C2:OFST?": "C2:OFST 0.00V",
+            "TDIV?": "TDIV 1.00ms",
+            "C1:ATTN?": "C1:ATTN 10",
+            "C2:ATTN?": "C2:ATTN 10",
+            "SARA?": "SARA 1.00GSa/s",
+        }
+        driver._resource.query.side_effect = lambda cmd: responses[cmd]
+        driver._resource.read_raw.side_effect = [
+            b"C1:WF DAT2,#14" + bytes([0, 1, 2, 3]),
+            b"C2:WF DAT2,#14" + bytes([4, 5, 6, 7]),
+        ]
+
+        result = driver.capture_waveforms([1, 2])
+
+        written_commands = [call.args[0] for call in driver._resource.write.call_args_list]
+        assert written_commands.count("TRMD STOP") == 1
+        assert written_commands.count("TRMD AUTO") == 1
+        stop_index = written_commands.index("TRMD STOP")
+        restore_index = written_commands.index("TRMD AUTO")
+        assert stop_index < restore_index
+
+        assert result[1]["num_points"] == 4
+        assert result[2]["num_points"] == 4
+
+    def test_single_channel_capture_waveform_still_stops_and_restores_once(self, driver):
+        """capture_waveform() delegates to capture_waveforms() and must keep
+        behaving exactly as before for a single channel.
+        """
+        responses = {
+            "TRMD?": "TRMD AUTO",
+            "C1:VDIV?": "C1:VDIV 500.00mV",
+            "C1:OFST?": "C1:OFST 0.00V",
+            "TDIV?": "TDIV 1.00ms",
+            "C1:ATTN?": "C1:ATTN 10",
+            "SARA?": "SARA 1.00GSa/s",
+        }
+        driver._resource.query.side_effect = lambda cmd: responses[cmd]
+        driver._resource.read_raw.return_value = b"C1:WF DAT2,#14" + bytes([0, 1, 2, 3])
+
+        result = driver.capture_waveform(channel=1)
+
+        written_commands = [call.args[0] for call in driver._resource.write.call_args_list]
+        assert written_commands.count("TRMD STOP") == 1
+        assert written_commands.count("TRMD AUTO") == 1
+        assert result["num_points"] == 4
+
+
 class TestReadIeeeBlockChunking:
     """Regression tests for the 6 July 2026 bug: a single read_raw() call
     under-read a large binary waveform block, leaving bytes in the socket

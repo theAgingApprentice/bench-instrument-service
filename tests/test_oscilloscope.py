@@ -101,22 +101,28 @@ def test_oscilloscope_configure_without_timebase_does_not_settle(client: TestCli
 
 
 def test_oscilloscope_capture_returns_waveform(client: TestClient, mock_drivers):
-    mock_drivers["oscilloscope"].capture_waveform.return_value = _WAVEFORM
+    mock_drivers["oscilloscope"].capture_waveforms.return_value = {1: _WAVEFORM}
     resp = client.post("/v1/oscilloscope/capture", json={"channels": [1]})
     assert resp.status_code == 200
     data = resp.json()
     assert data["channel_1"]["num_points"] == 4
     assert data["channel_2"] is None
+    mock_drivers["oscilloscope"].capture_waveforms.assert_called_once_with([1])
 
 
 def test_oscilloscope_capture_both_channels(client: TestClient, mock_drivers):
-    mock_drivers["oscilloscope"].capture_waveform.return_value = _WAVEFORM
+    """A dual-channel request must be a single capture_waveforms() call with
+    both channels, not one capture_waveform() call per channel -- calling
+    per-channel let acquisition resume between channels and produce an empty
+    second capture on real hardware (confirmed 7 July 2026).
+    """
+    mock_drivers["oscilloscope"].capture_waveforms.return_value = {1: _WAVEFORM, 2: _WAVEFORM}
     resp = client.post("/v1/oscilloscope/capture", json={"channels": [1, 2]})
     assert resp.status_code == 200
     data = resp.json()
     assert data["channel_1"] is not None
     assert data["channel_2"] is not None
-    assert mock_drivers["oscilloscope"].capture_waveform.call_count == 2
+    mock_drivers["oscilloscope"].capture_waveforms.assert_called_once_with([1, 2])
 
 
 def test_oscilloscope_status_503_when_unreachable(client: TestClient, mock_drivers):

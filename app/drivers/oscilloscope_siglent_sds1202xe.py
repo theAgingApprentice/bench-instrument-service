@@ -189,11 +189,36 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
         -- confirmed on real hardware 5 July 2026 while running
         RC-Experiments against a live signal.
         """
-        self._validate_channel(channel)
-        ch = f"C{channel}"
+        return self.capture_waveforms([channel])[channel]
+
+    def capture_waveforms(self, channels: list[int]) -> dict:
+        """Capture waveform data from one or more channels in a single stop/restore cycle.
+
+        Stopping and restoring acquisition per channel (rather than once for
+        the whole request) lets the scope resume free-running acquisition
+        between channels and then get stopped again before a full sweep
+        completes -- confirmed on real hardware 7 July 2026, where channel 1
+        returned 7,000,000 points and channel 2 returned num_points=0 in the
+        same /capture request. All requested channels must be read between a
+        single TRMD STOP and a single TRMD {prior_trmd} restore.
+        """
+        for channel in channels:
+            self._validate_channel(channel)
 
         prior_trmd = self.query("TRMD?").strip().split()[-1].upper()
         self.write("TRMD STOP")
+
+        results = {channel: self._read_channel_waveform(channel) for channel in channels}
+
+        self.write(f"TRMD {prior_trmd}")
+
+        return results
+
+    def _read_channel_waveform(self, channel: int) -> dict:
+        """Read one channel's settings and waveform buffer. Caller must have
+        already stopped acquisition (TRMD STOP) and must restore it afterward.
+        """
+        ch = f"C{channel}"
 
         vdiv = _parse_siglent_value(self.query(f"{ch}:VDIV?"))
         ofst = _parse_siglent_value(self.query(f"{ch}:OFST?"))
@@ -219,8 +244,6 @@ class OscilloscopeSiglentSDS1202XE(BaseInstrumentDriver):
             for b in data
         ]
         time_array = [i * time_step - half_window for i in range(num_points)]
-
-        self.write(f"TRMD {prior_trmd}")
 
         return {
             "enabled": True,
