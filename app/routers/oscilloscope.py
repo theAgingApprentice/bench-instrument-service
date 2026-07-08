@@ -91,13 +91,12 @@ def capture(
 ):
     """Capture waveform data from one or both channels."""
     with instrument_session(registry, "oscilloscope") as driver:
-        ch1_data = driver.capture_waveform(1) if 1 in req.channels else None
-        ch2_data = driver.capture_waveform(2) if 2 in req.channels else None
+        data = driver.capture_waveforms(req.channels)
 
     return OscilloscopeCaptureResponse(
         timestamp=datetime.now(timezone.utc).isoformat(),
-        channel_1=WaveformData(**ch1_data) if ch1_data else None,
-        channel_2=WaveformData(**ch2_data) if ch2_data else None,
+        channel_1=WaveformData(**data[1]) if 1 in data else None,
+        channel_2=WaveformData(**data[2]) if 2 in data else None,
     )
 
 

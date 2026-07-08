@@ -183,6 +183,14 @@ python3 -m venv /home/andrew/bis-venv
 
 All changes go through pull requests. Use `aaGitPromote` to open a PR and `aaGitCleanupBranches` to remove merged branches.
 
+**Testing:** `pytest -q` (mocked, no real instruments required) is the fast pre-check and must pass before opening a PR, but it is not a substitute for hardware validation on any driver-level change. Every real bug found in this service so far (block-transfer corruption, acquisition-settle timing, per-channel TRMD restore) was a real-instrument regression the mocked suite could not catch. For any change to `app/drivers/*.py`, also run the live-hardware tier against the real, powered-on instrument before merging:
+
+```bash
+BIS_HARDWARE_TESTS=1 pytest tests/test_oscilloscope_hardware.py -v
+```
+
+These tests are skipped by default (see the `hardware` marker in `tests/conftest.py`) since they require the SDS1202X-E to be powered on and reachable.
+
 For the full developer workflow — branching conventions, PR checklist, and deployment verification steps — see [`mitchellnet-infra/docs/runbook.md`](https://github.com/theAgingApprentice/mitchellnet-infra/blob/main/docs/runbook.md).
 
 ---

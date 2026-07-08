@@ -83,6 +83,26 @@ def mock_drivers() -> dict[str, MagicMock]:
     return {name: _make_driver() for name in _INSTRUMENT_NAMES}
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "hardware: mark test as requiring the real, powered-on SDS1202X-E oscilloscope",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if os.environ.get("BIS_HARDWARE_TESTS", "").lower() in {"1", "true", "yes", "on"}:
+        return
+
+    skip_hardware = pytest.mark.skip(
+        reason="hardware test skipped -- set BIS_HARDWARE_TESTS=1 and ensure the "
+        "SDS1202X-E oscilloscope is powered on and reachable to run this test"
+    )
+    for item in items:
+        if "hardware" in item.keywords:
+            item.add_marker(skip_hardware)
+
+
 @pytest.fixture
 def client(mock_drivers: dict[str, MagicMock]):
     """FastAPI TestClient with the registry dependency replaced by a mock.
