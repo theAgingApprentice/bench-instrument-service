@@ -1,3 +1,5 @@
+import logging
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
@@ -15,6 +17,8 @@ from app.models.oscilloscope import (
     WaveformData,
 )
 from app.services.instrument_registry import InstrumentRegistry
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/v1/oscilloscope",
@@ -63,6 +67,20 @@ def configure(
                 slope=req.trigger.slope,
                 mode=req.trigger.mode,
             )
+        if req.timebase is not None:
+            # A timebase change invalidates whatever the scope was previously
+            # acquiring. /configure and /capture are separate HTTP requests, each
+            # with its own connect/disconnect cycle, so a /capture issued right
+            # after this /configure can call TRMD STOP before the first sweep
+            # under the new settings completes, freezing an empty acquisition
+            # buffer. Sleep for one full sweep (14 horizontal divisions on the
+            # SDS1202X-E) plus margin before releasing the connection.
+            settle_seconds = req.timebase.scale * 14 + 0.5
+            logger.info(
+                "timebase changed, waiting %.3fs for acquisition to settle",
+                settle_seconds,
+            )
+            time.sleep(settle_seconds)
     return {"ok": True}
 
 

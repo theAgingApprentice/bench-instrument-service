@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -68,6 +70,34 @@ def test_oscilloscope_configure_trigger_calls_driver(client: TestClient, mock_dr
     mock_drivers["oscilloscope"].configure_trigger.assert_called_once_with(
         source=1, level=0.5, slope="POS", mode="AUTO",
     )
+
+
+def test_oscilloscope_configure_timebase_settles(client: TestClient, mock_drivers):
+    with patch("app.routers.oscilloscope.time.sleep") as mock_sleep:
+        resp = client.post(
+            "/v1/oscilloscope/configure",
+            json={"channel": 1, "timebase": {"scale": 0.001, "offset": 0.0}},
+        )
+    assert resp.status_code == 200
+    mock_sleep.assert_called_once_with(pytest.approx(0.001 * 14 + 0.5))
+
+
+def test_oscilloscope_configure_without_timebase_does_not_settle(client: TestClient, mock_drivers):
+    with patch("app.routers.oscilloscope.time.sleep") as mock_sleep:
+        resp = client.post(
+            "/v1/oscilloscope/configure",
+            json={"channel": 1, "channel_config": {"coupling": "DC", "scale": 0.5}},
+        )
+    assert resp.status_code == 200
+    mock_sleep.assert_not_called()
+
+    with patch("app.routers.oscilloscope.time.sleep") as mock_sleep:
+        resp = client.post(
+            "/v1/oscilloscope/configure",
+            json={"channel": 1, "trigger": {"source": 1, "level": 0.5, "slope": "POS", "mode": "AUTO"}},
+        )
+    assert resp.status_code == 200
+    mock_sleep.assert_not_called()
 
 
 def test_oscilloscope_capture_returns_waveform(client: TestClient, mock_drivers):
