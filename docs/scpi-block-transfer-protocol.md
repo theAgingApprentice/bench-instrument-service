@@ -1,14 +1,16 @@
 # SCPI IEEE-488.2 Block Transfers on the Siglent Scope
 
 **Last updated:** July 2026
-**Scope:** `app/drivers/base.py`, `app/drivers/oscilloscope_siglent_sds1202xe.py`
+**Scope:** `app/drivers/base.py`, `app/drivers/oscilloscope_siglent_sds1202xe.py`, `app/routers/oscilloscope.py`
 **Related:** [ARCHITECTURE.md § Binary waveform reads and IEEE block chunking](ARCHITECTURE.md)
 
 This document covers the wire format used by `WF?`/`PNSU?` waveform queries
 on the Siglent SDS1202X-E, the failure mode that format caused before the
-`chunk_size`/`timeout` fix, and a separate, smaller finding — transient
+`chunk_size`/`timeout` fix, a separate, smaller finding — transient
 per-query timeouts — that led to the retry logic now in
-`BaseInstrumentDriver.query()`.
+`BaseInstrumentDriver.query()`, and a third, unrelated finding — an empty
+acquisition buffer caused by capturing before the scope settles after a
+timebase change — that led to the settle delay in `configure()`.
 
 ---
 
@@ -169,7 +171,7 @@ Even after the fix above, individual SCPI *queries* (not just large block
 transfers) can still time out occasionally and unpredictably —
 `pyvisa.errors.VisaIOError` with `error_code == StatusCode.error_timeout`,
 with no corruption and no pattern tied to payload size. In isolated testing
-using the methodology in §6 below, this showed up at roughly a 6–7%
+using the methodology in §7 below, this showed up at roughly a 6–7%
 per-query rate — infrequent enough to be easy to miss in normal use, but
 frequent enough to intermittently fail real requests.
 
@@ -194,7 +196,52 @@ automatically; no per-driver changes were needed.
 
 ---
 
-## 6. How to diagnose this class of bug
+## 6. Acquisition settle time after timebase reconfiguration
+
+`/configure` and `/capture` are separate HTTP requests, and each opens and
+closes its own instrument connection (`instrument_session()` in
+`app/dependencies.py`). Nothing ties them together beyond the caller issuing
+one after the other.
+
+Changing the timebase (`TDIV`) invalidates whatever acquisition the scope
+was in the middle of — the new horizontal scale means the in-progress sweep
+no longer matches the settings the scope is now configured for. If a
+`/capture` request lands immediately after a `/configure` that changed the
+timebase, its `TRMD STOP` call can freeze the acquisition buffer before the
+first sweep under the new settings has completed. The result is a
+legitimately empty capture: `num_points=0` on both channels, with a clean,
+valid IEEE block header (`#9000000000`, this time genuinely zero bytes, not
+the in-flight placeholder from §2). Confirmed on real hardware 7 July 2026
+via RC-Experiments' `run_experiment.py`, where `capture_waveform()` returned
+`num_points=0` for both channels immediately after a timebase
+reconfiguration with no gap before the capture call.
+
+The fix: `configure()` (`app/routers/oscilloscope.py`) now sleeps after a
+timebase change, before releasing the instrument connection:
+
+```python
+settle_seconds = req.timebase.scale * 14 + 0.5
+time.sleep(settle_seconds)
+```
+
+`scale * 14` is one full horizontal sweep — the SDS1202X-E display is 14
+horizontal divisions, and `scale` is seconds/division — plus a fixed 0.5
+second margin. This guarantees at least one full sweep completes under the
+new settings before any subsequent `/capture` can call `TRMD STOP` and
+freeze the buffer. The sleep only runs when `timebase` was actually part of
+the request; channel- or trigger-only configure calls don't invalidate an
+in-progress sweep the same way and skip it.
+
+This is a different failure mode from both findings above: unlike the
+block-transfer corruption in §2–4, the header is clean and both channels are
+affected equally with no leftover bytes involved — it's an empty-but-valid
+capture, not a corrupted one. And unlike the transient query timeout in §5,
+it isn't a `VisaIOError` at all — the request succeeds; it just captures
+nothing.
+
+---
+
+## 7. How to diagnose this class of bug
 
 Both findings above were isolated with the same approach: **talk to the
 instrument directly, with no BIS abstraction in the way, and log everything
