@@ -99,11 +99,12 @@ class BenchClient:
         path: str,
         body: dict | None = None,
         token: str | None = None,
+        binary: bool = False,
     ) -> Any:
         url = f"{self._base}{path}"
         data = json.dumps(body).encode() if body is not None else None
 
-        headers: dict[str, str] = {"Accept": "application/json"}
+        headers: dict[str, str] = {"Accept": "*/*" if binary else "application/json"}
         if data is not None:
             headers["Content-Type"] = "application/json"
         if self._api_key:
@@ -118,6 +119,8 @@ class BenchClient:
                 req, timeout=self._timeout, context=self._ssl_ctx
             ) as resp:
                 raw = resp.read()
+                if binary:
+                    return raw
                 return json.loads(raw) if raw else None
         except urllib.error.HTTPError as exc:
             raw = exc.read()
@@ -308,6 +311,14 @@ class BenchClient:
     def oscilloscope_status(self, token: str) -> dict:
         """Return current oscilloscope timebase and trigger settings."""
         return self._get("/v1/oscilloscope/status", token=token)
+
+    def screenshot(self, token: str) -> bytes:
+        """Capture a screenshot of the oscilloscope's current display.
+
+        Returns raw BMP image bytes -- the actual instrument display as an
+        image, not a waveform data capture (see capture_waveform() for that).
+        """
+        return self._request("POST", "/v1/oscilloscope/screenshot", token=token, binary=True)
 
     # ------------------------------------------------------------------
     # Signal generator

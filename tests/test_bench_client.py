@@ -41,6 +41,24 @@ def _mock_urlopen(payload: dict, status: int = 200):
         yield m
 
 
+def _fake_binary_response(raw_bytes: bytes, status: int = 200) -> MagicMock:
+    """Return a mock that behaves like urllib's http.client.HTTPResponse,
+    but with .read() returning raw bytes directly (no JSON encoding)."""
+    mock = MagicMock()
+    mock.read.return_value = raw_bytes
+    mock.status = status
+    mock.__enter__ = lambda s: s
+    mock.__exit__ = MagicMock(return_value=False)
+    return mock
+
+
+@contextmanager
+def _mock_urlopen_binary(raw_bytes: bytes, status: int = 200):
+    """Context manager: patches urlopen to return a fake binary response."""
+    with patch("urllib.request.urlopen", return_value=_fake_binary_response(raw_bytes, status)) as m:
+        yield m
+
+
 @contextmanager
 def _mock_urlopen_error(status: int, detail: str):
     """Context manager: patches urlopen to raise HTTPError."""
@@ -165,6 +183,35 @@ class TestOscilloscope:
         with _mock_urlopen(payload):
             result = CLIENT.capture_waveforms("tok", channels=[1, 2])
         assert isinstance(result, dict)
+
+
+class TestScreenshot:
+    def test_screenshot_returns_raw_bytes(self):
+        raw_bytes = b"BM" + b"\x00" * 50
+        with _mock_urlopen_binary(raw_bytes):
+            result = CLIENT.screenshot("tok")
+        assert result == raw_bytes
+
+    def test_screenshot_sends_post_to_correct_path(self):
+        raw_bytes = b"BM" + b"\x00" * 50
+        with _mock_urlopen_binary(raw_bytes) as mock_open:
+            CLIENT.screenshot("tok")
+        req = mock_open.call_args[0][0]
+        assert req.get_method() == "POST"
+        assert req.get_full_url().endswith("/v1/oscilloscope/screenshot")
+
+    def test_screenshot_sends_no_body(self):
+        raw_bytes = b"BM" + b"\x00" * 50
+        with _mock_urlopen_binary(raw_bytes) as mock_open:
+            CLIENT.screenshot("tok")
+        req = mock_open.call_args[0][0]
+        assert req.data is None
+
+    def test_screenshot_raises_biserror_on_error(self):
+        with _mock_urlopen_error(423, "Session locked"):
+            with pytest.raises(BISError) as exc_info:
+                CLIENT.screenshot("bad-token")
+        assert exc_info.value.status == 423
 
 
 # ---------------------------------------------------------------------------
